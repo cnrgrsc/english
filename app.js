@@ -13,6 +13,7 @@ import {
 import {
   DEFAULT_DAILY_TASKS,
   getNextRecommendedUnit,
+  getUpcomingUnitsList,
   renderResumeAndDailyCockpit,
   renderStudyPlannerPage
 } from './src/data/studyPlanner.js';
@@ -783,7 +784,7 @@ function renderHeaderStats() {
 // --- SEVİYE FİLTRESİ BARI (A1 -> C2) ---
 function renderLevelFilterBar() {
   const levels = [
-    { id: 'ALL', label: 'Tüm Seviyeler' },
+    { id: 'ALL', label: 'Tümü' },
     { id: 'A1', label: 'A1 Başlangıç' },
     { id: 'A2', label: 'A2 Temel' },
     { id: 'B1', label: 'B1 Orta' },
@@ -792,30 +793,32 @@ function renderLevelFilterBar() {
     { id: 'C2', label: 'C2 Ana Dil' }
   ];
   return `
-    <div class="bg-white dark:bg-slate-900 rounded-2xl p-2 border border-slate-200/90 dark:border-slate-800 modern-card flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+    <div class="card p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
       <div class="flex items-center gap-1 shrink-0">
-        <span class="text-[11px] font-bold text-slate-400 px-2 hidden sm:inline">SEVİYE:</span>
+        <span class="text-[11px] font-bold text-slate-400 px-2.5 hidden sm:inline">SEVİYE:</span>
         ${levels.map((l) => `
-          <button onclick="setGlobalLevel('${l.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 ${
+          <button onclick="setGlobalLevel('${l.id}')" class="px-3 h-8 rounded-xl text-xs font-semibold transition shrink-0 ${
             state.selectedLevel === l.id
-              ? 'bg-blue-600 text-white shadow-sm'
+              ? 'bg-brand-600 text-white shadow-sm'
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }">${l.label}</button>
         `).join('')}
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
-        <button onclick="setTab('planner')" class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 text-xs font-bold hover:bg-emerald-100 transition">
-          📅 Çalışma Planım
+        <button onclick="startPracticeSession()" class="btn btn-primary btn-sm">
+          ${icon('zap', 'w-3.5 h-3.5')}
+          <span>5 Soruluk Pratik</span>
         </button>
-        <button onclick="setTab('roadmap')" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-blue-600 hover:text-white transition">
-          🗺️ A1 → C2 Ders Haritası →
+        <button onclick="setTab('roadmap')" class="btn btn-secondary btn-sm">
+          <span>A1 → C2 Müfredat</span>
+          ${icon('chevronRight', 'w-3.5 h-3.5')}
         </button>
       </div>
     </div>
   `;
 }
 
-// --- 1. ANA MERKEZ (MODERN SAAS PALETİ + PLANLAMA KOKPİTİ + GÖRSEL ŞEMALAR) ---
+// --- 1. ANA MERKEZ (PROFESYONEL 2 SÜTUNLU DİL ÖĞRENME PANELİ) ---
 function renderHome() {
   const p = state.progress;
   const totalCurriculumUnits = LEVEL_ROADMAP.reduce((acc, l) => acc + l.units.length, 0);
@@ -837,165 +840,292 @@ function renderHome() {
     Object.keys(p.srsMap).length;
   const pct = Math.min(100, Math.round((done / total) * 100));
 
+  const last = p.lastVisited || {
+    title: 'Ders 9-10: İngiliz Alfabesi ve Harflerin Telaffuzları (A → Ey)',
+    category: 'A1 Başlangıç • Alfabe & Ses',
+    timeLabel: 'Başlangıç noktası'
+  };
+  const upcoming = getUpcomingUnitsList(p, state.selectedLevel, 4);
+  const wordOfDay = MNEMONIC_VOCAB_DATA[p.masteredLetters.length % MNEMONIC_VOCAB_DATA.length] || MNEMONIC_VOCAB_DATA[0];
+  const recentLogs = (p.activityLog || []).slice(0, 4);
+
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
+    <div class="space-y-6 pb-8 anim-in">
       ${renderLevelFilterBar()}
 
-      <!-- Modern Kurumsal/SaaS Hero Banner -->
-      <div class="modern-hero rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-slate-800 relative overflow-hidden">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+      <!-- Üst Aktif Ders & Devam Et Kokpiti -->
+      <div class="card p-6 sm:p-7 relative overflow-hidden border-l-4 border-l-brand-600">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div class="space-y-3 max-w-2xl">
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold">
-              ✨ AKILLI ÇALIŞMA PLANLAYICISI & GÖRSEL HAFIZA SİSTEMİ
-            </span>
-            <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight text-white">
-              İngilizceyi <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-emerald-300">Planlı, Görsel Şemalarla ve Sesle</span> Öğren!
-            </h1>
-            <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Nerede kaldığını ve neler yaptığını otomatik takip eden çalışma planlayıcısı, her harfin görsel çapası (<strong>A → 🍎 Apple / Ey</strong>), 21 gramer tablosu ve 289 derslik A1→C2 müfredatı.
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="chip chip-brand">
+                ${icon('sparkles', 'w-3.5 h-3.5')}
+                <span>KALDIĞIN YERDEN DEVAM ET</span>
+              </span>
+              <span class="text-xs muted">${last.category || 'A1 Başlangıç'} • ${last.timeLabel || 'Az önce'}</span>
+            </div>
+            <h1 class="h1">${last.title}</h1>
+            <p class="text-sm muted leading-relaxed">
+              Son çalıştığın dersten tek tıkla devam edebilir veya 5 soruluk günlük interaktif pratik oturumuyla öğrendiklerini hemen test edebilirsin.
             </p>
-            <div class="flex flex-wrap gap-2.5 pt-2">
-              <button onclick="resumeLastActivity()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-sm transition active:scale-95">
-                ▶️ Kaldığım Yerden Devam Et
+            <div class="flex flex-wrap items-center gap-2.5 pt-1">
+              <button onclick="resumeLastActivity()" class="btn btn-primary btn-md">
+                ${icon('play', 'w-4 h-4')}
+                <span>Kaldığım Yerden Devam Et</span>
               </button>
-              <button onclick="openPronounsTable()" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition">
-                📊 21 Gramer & Zamir Tablosu
+              <button onclick="startPracticeSession()" class="btn btn-secondary btn-md">
+                ${icon('zap', 'w-4 h-4 text-brand-600')}
+                <span>Günlük Pratik Yap (5 Soru)</span>
               </button>
-              <button onclick="setTab('alphabet')" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-xs transition">
-                🔤 Resimli 26 Harf & Fonetik (A → Ey)
-              </button>
-              <button onclick="setTab('planner')" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 text-emerald-200 font-semibold text-xs transition">
-                📅 Çalışma Planım & Geçmişim
+              <button onclick="openPronounsTable()" class="btn btn-outline btn-md">
+                ${icon('table', 'w-4 h-4')}
+                <span>21 Konu & Zamir Tablosu</span>
               </button>
             </div>
           </div>
 
-          <!-- Sağ İstatistik & SVG Halka -->
-          <div class="flex items-center gap-4 bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-slate-700/80 shrink-0">
-            <div class="relative w-20 h-20 flex items-center justify-center">
-              <svg class="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.1)" stroke-width="7" fill="none"/>
-                <circle cx="40" cy="40" r="32" stroke="#3b82f6" stroke-width="7" fill="none" stroke-linecap="round"
+          <!-- Sağ İlerleme Halkası -->
+          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 shrink-0">
+            <div class="relative w-16 h-16 flex items-center justify-center">
+              <svg class="w-16 h-16 -rotate-90" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="32" stroke="currentColor" class="text-slate-200 dark:text-slate-700" stroke-width="7" fill="none"/>
+                <circle cx="40" cy="40" r="32" stroke="#2554eb" stroke-width="7" fill="none" stroke-linecap="round"
                   stroke-dasharray="201" stroke-dashoffset="${201 - (201 * pct) / 100}"/>
               </svg>
-              <span class="absolute text-base font-extrabold text-white">%${pct}</span>
+              <span class="absolute text-sm font-extrabold text-slate-900 dark:text-white">%${pct}</span>
             </div>
-            <div class="space-y-1.5 pr-2">
-              <div class="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                <span>🔥 ${p.streakDays} Günlük Çalışma Serisi</span>
-              </div>
-              <div class="flex items-center gap-2 text-xs font-bold text-blue-300">
-                <span>🏆 ${p.xp} Toplam XP Puanı</span>
-              </div>
-              <div class="text-[11px] text-slate-400 font-medium">
-                ${done} / ${total} Adım Tamamlandı
-              </div>
+            <div class="space-y-1 pr-2">
+              <div class="text-xs font-bold text-slate-900 dark:text-white">Genel Müfredat İlerlemesi</div>
+              <div class="text-xs font-semibold text-brand-600 dark:text-brand-400">${done} / ${total} Adım Tamamlandı</div>
+              <div class="text-[11px] muted">🔥 ${p.streakDays} Gün Seri • 🏆 ${p.xp} XP</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- KİŞİSEL ÇALIŞMA PLANLAYICISI & KALDIĞIM YERDEN DEVAM ET KOKPİTİ -->
-      ${renderResumeAndDailyCockpit(state)}
-
-      <!-- 3'lü Görsel Hafıza İnfografikleri (Zamir Şeması, IN-ON-AT Piramidi, Kedi-Kutu Konumları) -->
-      ${renderVisualInfographicsSection()}
-
-      <!-- 6 Seviye Görsel Yol Haritası Kartları (A1 -> C2) -->
-      <div>
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>🗺️ Seviyelere Göre Öğrenim Haritası (A1 → C2)</span>
-          </h2>
-          <button onclick="setTab('roadmap')" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Tüm Dersleri Aç →</button>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          ${LEVEL_ROADMAP.map((item, idx) => {
-            const icons = ['🌱', '🚀', '⚡', '💼', '🎓', '👑'];
-            const completedCount = item.units.filter((u) => (p.completedChecklist || []).includes(u.code)).length;
-            const unitPct = Math.round((completedCount / item.units.length) * 100);
-            return `
-              <div onclick="setGlobalLevel('${item.level}'); setTab('roadmap')" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/90 dark:border-slate-800 hover:border-blue-500 modern-card transition-all flex flex-col justify-between gap-3">
-                <div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 font-extrabold text-xs">
-                      ${icons[idx] || '🌟'} ${item.level} SEVİYESİ
-                    </span>
-                    <span class="text-xs font-bold text-slate-400">${completedCount}/${item.units.length} Ünite</span>
-                  </div>
-                  <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white group-hover:text-blue-600 transition">${item.title.split('—')[1] || item.title}</h3>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">${item.description}</p>
+      <!-- ANA 2 SÜTUNLU PANEL (Sol 8 Sütun: Ders Yolu & Modüller | Sağ 4 Sütun: Günlük Plan & Günün Kelimesi) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- SOL ANA SÜTUN (8 Sütun) -->
+        <div class="lg:col-span-8 space-y-6">
+          
+          <!-- 1. Adım Adım Aktif Ders Yolu (Learning Path) -->
+          <div class="card p-5 sm:p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="chip chip-brand">SEVİYE ${upcoming.level} DERS YOLU</span>
+                  <span class="text-xs font-semibold muted">${upcoming.doneInLevel}/${upcoming.totalInLevel} Ünite Tamamlandı</span>
                 </div>
-                <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div class="h-full bg-blue-600 rounded-full" style="width: ${unitPct}%"></div>
+                <h2 class="h2 mt-1">${upcoming.levelTitle}</h2>
+              </div>
+              <button onclick="setTab('roadmap')" class="btn btn-secondary btn-sm self-start sm:self-auto">
+                <span>Tüm Üniteler (62)</span>
+                ${icon('chevronRight', 'w-3.5 h-3.5')}
+              </button>
+            </div>
+
+            <div class="space-y-2.5">
+              ${upcoming.units.map((u, idx) => {
+                const isDone = (p.completedChecklist || []).includes(u.code);
+                const isCurrent = !isDone && idx === upcoming.units.findIndex((x) => !(p.completedChecklist || []).includes(x.code));
+                return `
+                  <div class="p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isCurrent
+                      ? 'bg-brand-50/50 dark:bg-brand-950/30 border-brand-500 ring-1 ring-brand-500/30'
+                      : isDone
+                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                      : 'bg-white dark:bg-ink-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                  }">
+                    <div class="flex items-start sm:items-center gap-3.5 flex-1">
+                      <div class="w-11 h-10 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                        isDone
+                          ? 'bg-emerald-600 text-white'
+                          : isCurrent
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                      }">
+                        ${isDone ? icon('check', 'w-4 h-4') : u.code}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                          ${isCurrent ? `<span class="chip chip-brand">ŞU ANKİ DERSİN</span>` : ''}
+                          ${isDone ? `<span class="chip chip-green">Tamamlandı</span>` : ''}
+                          <span class="chip chip-slate">${u.tag}</span>
+                        </div>
+                        <h3 class="text-sm font-bold ${isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'} leading-snug">
+                          ${u.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="btn ${isCurrent ? 'btn-primary' : 'btn-secondary'} btn-sm">
+                        <span>Dersi Aç</span>
+                        ${icon('arrowRight', 'w-3.5 h-3.5')}
+                      </button>
+                      <button onclick="toggleChecklistItem('${u.code}')" class="btn ${isDone ? 'btn-success' : 'btn-outline'} btn-sm">
+                        ${isDone ? 'Tamam ✓' : 'Bitir'}
+                      </button>
+                    </div>
                   </div>
-                  <div class="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
-                    <span>Üniteleri ve Tabloları Gör (%${unitPct})</span>
-                    <span class="group-hover:translate-x-1 transition">→</span>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- 2. 4 Ana Öğrenim Stüdyosu (2x2 Kartlar) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div onclick="setTab('grammar')" class="card card-hover p-5 flex flex-col justify-between gap-4">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/70 text-brand-600 dark:text-brand-400 flex items-center justify-center">
+                    ${icon('table', 'w-5 h-5')}
                   </div>
+                  <span class="chip chip-brand">${p.masteredTables.length}/${REFERENCE_TABLES.length} Tablo</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Zamir, Edat, Modal & C1-C2 Tabloları</h3>
+                <p class="text-xs muted leading-relaxed">Şahıs/Nesne/İyelik zamirleri, Sayılar, Artikeller, Modals, Phrasal Verbs ve 12 Zaman Çizelgesi.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="progress"><span style="width: ${Math.round((p.masteredTables.length / REFERENCE_TABLES.length) * 100)}%"></span></div>
+                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
+                  <span>Tabloları & Zamanları Aç</span>
+                  ${icon('arrowRight', 'w-3.5 h-3.5')}
                 </div>
               </div>
-            `;
-          }).join('')}
-        </div>
-      </div>
-
-      <!-- 4 Ana Görsel Modül Kartı -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div onclick="setTab('grammar')" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 hover:border-blue-500 modern-card transition flex flex-col justify-between gap-4">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-sm">📊</div>
-              <span class="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300">${REFERENCE_TABLES.length} Tablo • ${GRAMMAR_TENSES.length} Zaman</span>
             </div>
-            <h2 class="text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-blue-600 transition">1. Görsel Zamir, Edat, Modal & C1-C2 Tabloları</h2>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Şahıs/Nesne/İyelik zamirleri, Sayılar/Saatler, Artikeller, Modals, Phrasal Verbs ve Zaman Çizelgesi (Timeline) şemaları.</p>
+
+            <div onclick="setTab('alphabet')" class="card card-hover p-5 flex flex-col justify-between gap-4">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    ${icon('type', 'w-5 h-5')}
+                  </div>
+                  <span class="chip chip-brand">${p.masteredLetters.length}/26 Harf</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Alfabe (A → Ey) & Fonetik Stüdyosu</h3>
+                <p class="text-xs muted leading-relaxed">26 harfin görsel çapası, Türkçe okunuşu, ağız/dil pozisyonu ve TH, SH, CH, GH ses kuralları.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="progress"><span style="width: ${Math.round((p.masteredLetters.length / 26) * 100)}%"></span></div>
+                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
+                  <span>Harfleri & Sesleri Aç</span>
+                  ${icon('arrowRight', 'w-3.5 h-3.5')}
+                </div>
+              </div>
+            </div>
+
+            <div onclick="setTab('conversations')" class="card card-hover p-5 flex flex-col justify-between gap-4">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    ${icon('message', 'w-5 h-5')}
+                  </div>
+                  <span class="chip chip-green">${PHRASE_PATTERNS.length} Kalıp • 4 Diyalog</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Günlük Sohbet & Rol Canlandırma</h3>
+                <p class="text-xs muted leading-relaxed">Kafe, Mağaza, Havalimanı ve İş Toplantısı simülasyonları; mikrofonlu telaffuz testi.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="progress"><span style="width: ${Math.round((p.masteredPhrases.length / PHRASE_PATTERNS.length) * 100)}%"></span></div>
+                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
+                  <span>Kalıplara & Diyaloglara Gir</span>
+                  ${icon('arrowRight', 'w-3.5 h-3.5')}
+                </div>
+              </div>
+            </div>
+
+            <div onclick="setTab('srs')" class="card card-hover p-5 flex flex-col justify-between gap-4">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    ${icon('trophy', 'w-5 h-5')}
+                  </div>
+                  <span class="chip chip-amber">${Object.keys(p.srsMap).length}/${MNEMONIC_VOCAB_DATA.length} Kart • 3 Sınav</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Görsel Hafıza (SRS) & Seviye Sınavları</h3>
+                <p class="text-xs muted leading-relaxed">Ses çağrışımlı kelime kartları, kelime dizerek cümle kurma ve çözümlü seviye sınavları.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="progress"><span style="width: ${Math.round((Object.keys(p.srsMap).length / MNEMONIC_VOCAB_DATA.length) * 100)}%"></span></div>
+                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
+                  <span>Kartları & Sınavları Aç</span>
+                  ${icon('arrowRight', 'w-3.5 h-3.5')}
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="text-xs font-bold text-blue-600 dark:text-blue-400 pt-3 border-t border-slate-100 dark:border-slate-800">Tabloları ve Zamanları Aç →</div>
+
+          <!-- 3. Görsel Hafıza Şemaları -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="h2">Görsel Hafıza & Dilbilgisi Şemaları</h2>
+              <button onclick="setTab('grammar')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Tüm Tablolar →</button>
+            </div>
+            ${renderVisualInfographicsSection()}
+          </div>
         </div>
 
-        <div onclick="setTab('alphabet')" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 hover:border-indigo-500 modern-card transition flex flex-col justify-between gap-4">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-sm">🔤</div>
-              <span class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300">${p.masteredLetters.length}/26 Harf • ${p.masteredRules.length}/${PHONETIC_RULES.length} Kural</span>
+        <!-- SAĞ YAN SÜTUN (4 Sütun: Günlük Plan + Günün Kelimesi + Son Yaptıklarım) -->
+        <div class="lg:col-span-4 space-y-5">
+          ${renderResumeAndDailyCockpit(state)}
+
+          <!-- Günün Hafıza Çivisi (Word of the Day Mini Kart) -->
+          <div class="card p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="chip chip-amber">🔑 GÜNÜN HAFIZA KARTI (${wordOfDay.level})</span>
+              <button onclick="speakText('${wordOfDay.word}', 0.9)" class="speak-btn speak-btn-sm" title="Sesli Dinle">
+                ${icon('volume', 'w-4 h-4')}
+              </button>
             </div>
-            <h2 class="text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 transition">2. Resimli Alfabe (A → Ey) & Fonetik Laboratuvarı</h2>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Her harf için görsel ikon (A=🍎 Apple, K=🔪 Knife), Türkçe okunuşu, ağız/dil pozisyonu ve peltek TH/SH/CH kuralları.</p>
+            <div>
+              <div class="flex items-baseline gap-2">
+                <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">${wordOfDay.word}</h3>
+                <span class="text-xs font-semibold text-brand-600 dark:text-brand-400">[${wordOfDay.trRead}]</span>
+              </div>
+              <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">= ${wordOfDay.meaning}</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 text-xs space-y-1">
+              <div class="font-bold text-slate-800 dark:text-slate-200">Çağrışım: ${wordOfDay.soundAlikeTr}</div>
+              <p class="muted leading-relaxed">${wordOfDay.mnemonicStory}</p>
+            </div>
+            <button onclick="setTab('srs'); setSrsSub('flashcards')" class="btn btn-secondary btn-sm w-full">
+              <span>Tüm Hafıza Kartlarını Çalış</span>
+              ${icon('arrowRight', 'w-3.5 h-3.5')}
+            </button>
           </div>
-          <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 pt-3 border-t border-slate-100 dark:border-slate-800">Harfleri ve Sesleri Aç →</div>
+
+          <!-- Son Yaptıklarım (Activity Feed) -->
+          <div class="card p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="h3">Son Yaptıklarım</h3>
+              <button onclick="setTab('planner')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Tümü →</button>
+            </div>
+            ${recentLogs.length === 0 ? `
+              <p class="text-xs muted py-3 text-center">Tamamladığın dersler ve tablolar burada listelenir.</p>
+            ` : `
+              <div class="space-y-2">
+                ${recentLogs.map((log) => `
+                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="chip chip-green shrink-0">${log.badge || '✓'}</span>
+                      <span class="font-semibold text-slate-700 dark:text-slate-200 truncate">${log.title}</span>
+                    </div>
+                    <span class="text-[10px] muted shrink-0">${log.time}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
         </div>
 
-        <div onclick="setTab('conversations')" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-500 modern-card transition flex flex-col justify-between gap-4">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-sm">💬</div>
-              <span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">${PHRASE_PATTERNS.length} Kalıp • ${CONVERSATION_SCENARIOS.length} Rol Canlandırma</span>
-            </div>
-            <h2 class="text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 transition">3. Günlük Sohbetler, İş İngilizcesi & Rol Canlandırma</h2>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Kafe, Giyim Mağazası, Havalimanı ve İş Toplantısı senaryoları; konuşma kısaltmaları (Wanna, Gonna) ve C1-C2 deyimler.</p>
-          </div>
-          <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 pt-3 border-t border-slate-100 dark:border-slate-800">Kalıplara ve Diyaloglara Gir →</div>
-        </div>
-
-        <div onclick="setTab('srs')" class="cursor-pointer group bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/90 dark:border-slate-800 hover:border-sky-500 modern-card transition flex flex-col justify-between gap-4">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="w-12 h-12 rounded-xl bg-sky-600 text-white flex items-center justify-center text-xl shadow-sm">🧠</div>
-              <span class="text-xs font-bold px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300">Görsel Hafıza Kartları • 4 Seviye Sınavı</span>
-            </div>
-            <h2 class="text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-sky-600 transition">4. Görsel Hafıza Çivileri (SRS) & Bölüm Sonu Sınavları</h2>
-            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Resimli sahnelerle kodlanmış kelime hikayeleri, SM-2 aralıklı tekrar kartları ve A1-A2 / B1-B2 / C1-C2 çözümlü sınavlar.</p>
-          </div>
-          <div class="text-xs font-bold text-sky-600 dark:text-sky-400 pt-3 border-t border-slate-100 dark:border-slate-800">Görsel Kartları ve Sınavları Aç →</div>
-        </div>
       </div>
     </div>
   `;
 }
 
-// --- 2. SEVİYE YOL HARİTASI ---
+// --- 2. SEVİYE YOL HARİTASI (A1 -> C2 MÜFREDAT) ---
 function renderRoadmap() {
   const filteredLevels =
     state.selectedLevel === 'ALL'
@@ -1003,15 +1133,21 @@ function renderRoadmap() {
       : LEVEL_ROADMAP.filter((l) => l.level === state.selectedLevel);
 
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
+    <div class="space-y-6 pb-8 anim-in">
       ${renderLevelFilterBar()}
 
-      <div class="modern-hero rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-slate-800">
-        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 border border-blue-400/30 text-blue-300 mb-2">🗺️ A1'DEN C2'YE EKSİKSİZ AKADEMİK MÜFREDAT</span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold">Hangi Seviyede Ne Öğrenilecek? (A1 → C2)</h1>
-        <p class="text-slate-300 text-sm mt-1">
-          İstediğin dersin yanındaki <strong>"📖 Konuyu Aç →"</strong> butonuna basarak doğrudan o konunun tablosuna gidebilir (sistem kaldığın yeri otomatik kaydeder) veya tamamladığında işaretleyebilirsin (+15 XP)!
-        </p>
+      <div class="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="space-y-1.5">
+          <span class="chip chip-brand">A1'DEN C2'YE AKADEMİK MÜFREDAT</span>
+          <h1 class="h1">Hangi Seviyede Ne Öğrenilecek? (A1 → C2)</h1>
+          <p class="text-sm muted">
+            İstediğin dersin yanındaki <strong>"Konuyu Aç"</strong> butonuna basarak doğrudan o konunun tablosuna gidebilir veya tamamladığında işaretleyebilirsin (+15 XP).
+          </p>
+        </div>
+        <button onclick="openSearchModal()" class="btn btn-secondary btn-md shrink-0">
+          ${icon('search', 'w-4 h-4')}
+          <span>Müfredatta Ara</span>
+        </button>
       </div>
 
       <div class="space-y-5">
@@ -1019,48 +1155,53 @@ function renderRoadmap() {
           const completedInLevel = lvl.units.filter((u) =>
             state.progress.completedChecklist.includes(u.code)
           ).length;
+          const pct = Math.round((completedInLevel / lvl.units.length) * 100);
 
           return `
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden modern-card">
-              <div class="p-5 sm:p-6 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800">
-                <div>
-                  <span class="inline-block px-2.5 py-0.5 rounded-md bg-blue-600 text-xs font-extrabold mb-1.5">SEVİYE ${lvl.level}</span>
-                  <h2 class="text-lg sm:text-xl font-extrabold">${lvl.title}</h2>
-                  <p class="text-slate-300 text-xs sm:text-sm mt-1">${lvl.description}</p>
+            <div class="card overflow-hidden">
+              <div class="p-5 sm:p-6 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="chip chip-brand">SEVİYE ${lvl.level}</span>
+                    <span class="text-xs font-semibold muted">%${pct} Tamamlandı</span>
+                  </div>
+                  <h2 class="h2">${lvl.title}</h2>
+                  <p class="text-xs sm:text-sm muted">${lvl.description}</p>
                 </div>
-                <div class="shrink-0 bg-white/5 border border-white/10 px-4 py-2.5 rounded-xl text-center">
-                  <div class="text-lg font-extrabold text-blue-400">${completedInLevel} / ${lvl.units.length}</div>
-                  <div class="text-[11px] font-semibold text-slate-300">Ünite Tamamlandı</div>
+                <div class="shrink-0 bg-white dark:bg-ink-900 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-center">
+                  <div class="text-lg font-extrabold text-brand-600 dark:text-brand-400">${completedInLevel} / ${lvl.units.length}</div>
+                  <div class="text-[11px] font-semibold muted">Ünite Bitti</div>
                 </div>
               </div>
 
-              <div class="p-5 sm:p-6 space-y-2">
+              <div class="p-4 sm:p-6 space-y-2">
                 ${lvl.units.map((u) => {
                   const checked = state.progress.completedChecklist.includes(u.code);
                   return `
                     <div class="p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       checked
-                        ? 'bg-emerald-50/70 dark:bg-emerald-950/25 border-emerald-200 dark:border-emerald-900/60'
-                        : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700/70 hover:border-blue-400'
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                        : 'bg-white dark:bg-ink-900 border-slate-200/80 dark:border-slate-800 hover:border-brand-400'
                     }">
                       <div onclick="toggleChecklistItem('${u.code}')" class="cursor-pointer flex items-center gap-3 flex-1">
                         <div class="w-11 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
-                          checked ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'
+                          checked ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
                         }">
                           ${checked ? '✓' : u.code}
                         </div>
                         <div>
-                          <span class="text-sm font-bold block ${checked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${u.title}</span>
-                          <span class="text-[11px] font-bold text-blue-600 dark:text-blue-400">${u.tag}</span>
+                          <span class="text-sm font-semibold block ${checked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${u.title}</span>
+                          <span class="text-[11px] font-semibold text-brand-600 dark:text-brand-400">${u.tag}</span>
                         </div>
                       </div>
                       <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-300 text-xs font-bold transition">
-                          📖 Konuyu Aç →
+                        <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="btn btn-secondary btn-sm">
+                          <span>Konuyu Aç</span>
+                          ${icon('arrowRight', 'w-3.5 h-3.5')}
                         </button>
-                        <button onclick="toggleChecklistItem('${u.code}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold ${
-                          checked ? 'bg-emerald-600 text-white' : 'bg-slate-200/80 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-600 hover:text-white'
-                        } transition">${checked ? 'Tamam ✓' : 'Bitir'}</button>
+                        <button onclick="toggleChecklistItem('${u.code}')" class="btn ${checked ? 'btn-success' : 'btn-outline'} btn-sm">
+                          ${checked ? 'Tamam ✓' : 'Bitir'}
+                        </button>
                       </div>
                     </div>
                   `;
@@ -1074,183 +1215,179 @@ function renderRoadmap() {
   `;
 }
 
-// --- 3. RESİMLİ ALFABE VE FONETİK LABORATUVARI ---
+// --- 3. RESİMLİ ALFABE VE FONETİK STÜDYOSU (SPLIT-PANE STUDIO) ---
 function renderAlphabet() {
   const letters = ALPHABET_DATA.filter((item) => state.alphaFilter === 'all' ? true : item.type === state.alphaFilter);
   const sel = state.selectedLetter;
-  const selAnchor = LETTER_VISUAL_ANCHORS[sel.letter] || { emoji: '🔤', keyword: sel.examples[0].word, color: 'from-indigo-500 to-purple-600' };
+  const selAnchor = LETTER_VISUAL_ANCHORS[sel.letter] || { emoji: '🔤', keyword: sel.examples[0].word, color: 'from-brand-600 to-indigo-600' };
   const isMastered = state.progress.masteredLetters.includes(sel.letter);
 
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
-      <div class="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 rounded-3xl p-5 sm:p-6 text-white shadow-lg">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-white/20 mb-2">🔤 RESİMLİ & SESLİ FONETİK LABORATUVARI</span>
-            <h1 class="text-2xl sm:text-3xl font-extrabold">26 Harf Görsel Hafıza Kartları & Okunuş Şifreleri</h1>
-            <p class="text-indigo-100 text-sm mt-1">Her harfin görsel çapası (A → 🍎 Apple / Ey), ağız pozisyonu ve kelime içi ses değişimleri.</p>
-          </div>
-          <button onclick="playAllLetters()" class="self-start sm:self-auto bg-white text-indigo-700 font-bold px-4 py-2.5 rounded-2xl shadow text-sm hover:bg-indigo-50">
-            ▶️ 26 Harfi Sırayla Dinle
-          </button>
+    <div class="space-y-6 pb-8 anim-in">
+      <!-- Üst Başlık & Alt Sekme Seçici -->
+      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="chip chip-brand">FONETİK & SES LABORATUVARI</span>
+          <h1 class="h1">26 Harf Görsel Hafıza Kartları & Okunuş Şifreleri</h1>
+          <p class="text-sm muted">Her harfin görsel çapası (A → 🍎 Apple / Ey), ağız pozisyonu ve kelime içi ses değişimleri.</p>
         </div>
-        <div class="grid grid-cols-2 gap-2 mt-5 bg-black/20 p-1.5 rounded-2xl">
-          <button onclick="setAlphaSub('letters')" class="py-2.5 px-4 rounded-xl font-bold text-sm transition ${state.alphaSub === 'letters' ? 'bg-white text-indigo-700 shadow' : 'text-white/80'}">
-            🔤 Resimli 26 Harf (${state.progress.masteredLetters.length}/26)
-          </button>
-          <button onclick="setAlphaSub('rules')" class="py-2.5 px-4 rounded-xl font-bold text-sm transition ${state.alphaSub === 'rules' ? 'bg-white text-indigo-700 shadow' : 'text-white/80'}">
-            🔥 Altın Okunuş Kuralları (${state.progress.masteredRules.length}/${PHONETIC_RULES.length})
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <div class="seg">
+            <button onclick="setAlphaSub('letters')" class="seg-item ${state.alphaSub === 'letters' ? 'seg-active' : ''}">
+              26 Harf (${state.progress.masteredLetters.length}/26)
+            </button>
+            <button onclick="setAlphaSub('rules')" class="seg-item ${state.alphaSub === 'rules' ? 'seg-active' : ''}">
+              Okunuş Kuralları (${state.progress.masteredRules.length}/${PHONETIC_RULES.length})
+            </button>
+          </div>
+          <button onclick="playAllLetters()" class="btn btn-primary btn-sm">
+            ${icon('volume', 'w-4 h-4')}
+            <span>26 Harfi Dinle</span>
           </button>
         </div>
       </div>
 
       ${state.alphaSub === 'letters' ? `
+        <!-- Filtre Çubuğu -->
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-            <button onclick="setAlphaFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${state.alphaFilter === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400'}">Tümü (26)</button>
-            <button onclick="setAlphaFilter('vowel')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${state.alphaFilter === 'vowel' ? 'bg-amber-500 text-white' : 'text-slate-600 dark:text-slate-400'}">Sesli Harfler (5 Ünlü)</button>
-            <button onclick="setAlphaFilter('consonant')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${state.alphaFilter === 'consonant' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-400'}">Sessiz Harfler (21 Ünsüz)</button>
+          <div class="seg">
+            <button onclick="setAlphaFilter('all')" class="seg-item ${state.alphaFilter === 'all' ? 'seg-active' : ''}">Tümü (26)</button>
+            <button onclick="setAlphaFilter('vowel')" class="seg-item ${state.alphaFilter === 'vowel' ? 'seg-active' : ''}">Sesli Harfler (5 Ünlü)</button>
+            <button onclick="setAlphaFilter('consonant')" class="seg-item ${state.alphaFilter === 'consonant' ? 'seg-active' : ''}">Sessiz Harfler (21 Ünsüz)</button>
           </div>
-          <span class="text-xs text-slate-500 font-medium">💡 Harfe dokun: Görsel çapasını ve sesini hemen aç!</span>
+          <span class="text-xs muted">Harfe tıkladığında sağ panelde seslendirilir ve detayları açılır</span>
         </div>
 
-        <!-- Görsel İkonlu 26 Harf Grid -->
-        <div class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 gap-2.5">
-          ${letters.map((item) => {
-            const active = sel.letter === item.letter;
-            const done = state.progress.masteredLetters.includes(item.letter);
-            const anchor = LETTER_VISUAL_ANCHORS[item.letter] || { emoji: '🔤', keyword: '' };
-            return `
-              <button onclick="selectLetter('${item.letter}')" class="relative flex flex-col items-center justify-between p-2.5 rounded-2xl border-2 transition-all active:scale-95 ${
-                active
-                  ? 'border-indigo-600 bg-indigo-50/90 dark:bg-indigo-950/70 ring-4 ring-indigo-500/20 shadow-lg -translate-y-0.5'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300'
-              }">
-                ${done ? `<span class="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>` : ''}
-                <div class="flex items-center justify-between w-full px-0.5">
-                  <span class="text-base">${anchor.emoji}</span>
-                  <span class="text-[10px] font-bold px-1 rounded ${item.type === 'vowel' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}">${item.ipa}</span>
-                </div>
-                <div class="text-2xl sm:text-3xl font-black my-0.5">${item.letter}<span class="text-base font-bold text-slate-400 ml-0.5">${item.lower}</span></div>
-                <div class="w-full py-0.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-extrabold shadow-sm">${item.nameTr}</div>
-                <span class="text-[9px] font-bold text-slate-400 mt-1 truncate max-w-full">${anchor.keyword}</span>
-              </button>
-            `;
-          }).join('')}
-        </div>
+        <!-- Split-Pane: Sol 26 Harf Klavyesi (7 Sütun) + Sağ Detay Stüdyosu (5 Sütun) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Sol: 26 Harf Klavye Izgarası -->
+          <div class="lg:col-span-7 grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-2.5">
+            ${letters.map((item) => {
+              const active = sel.letter === item.letter;
+              const done = state.progress.masteredLetters.includes(item.letter);
+              const anchor = LETTER_VISUAL_ANCHORS[item.letter] || { emoji: '🔤', keyword: '' };
+              return `
+                <button onclick="selectLetter('${item.letter}')" class="relative flex flex-col items-center justify-between p-3 rounded-2xl border transition active:scale-95 ${
+                  active
+                    ? 'border-brand-600 bg-brand-50/70 dark:bg-brand-950/50 ring-2 ring-brand-500/30 shadow-sm'
+                    : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-ink-900 hover:border-brand-400'
+                }">
+                  ${done ? `<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500"></span>` : ''}
+                  <div class="flex items-center justify-between w-full">
+                    <span class="text-sm">${anchor.emoji}</span>
+                    <span class="text-[10px] font-mono muted">${item.ipa}</span>
+                  </div>
+                  <div class="text-2xl font-extrabold my-1 text-slate-900 dark:text-white">${item.letter}<span class="text-sm font-semibold text-slate-400 ml-0.5">${item.lower}</span></div>
+                  <div class="w-full py-0.5 rounded-md bg-brand-600 text-white text-[11px] font-bold">${item.nameTr}</div>
+                  <span class="text-[10px] font-medium muted mt-1 truncate max-w-full">${anchor.keyword}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
 
-        <!-- Seçili Harfin Görsel & Sesli Detay Kartı -->
-        <div class="bg-white dark:bg-slate-900 rounded-3xl border-2 border-indigo-500/30 shadow-xl overflow-hidden">
-          <div class="p-5 sm:p-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div class="flex items-center gap-4">
-                <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br ${selAnchor.color} flex flex-col items-center justify-center shadow-xl border-2 border-white/25 shrink-0">
-                  <span class="text-2xl mb-0.5">${selAnchor.emoji}</span>
-                  <span class="text-3xl sm:text-4xl font-black leading-none">${sel.letter}${sel.lower}</span>
-                  <span class="text-[11px] font-extrabold text-amber-200 mt-1">${sel.nameTr} (${sel.ipa})</span>
+          <!-- Sağ: Seçili Harf İnceleme Stüdyosu -->
+          <div class="lg:col-span-5 card overflow-hidden lg:sticky lg:top-20">
+            <div class="p-5 bg-slate-900 text-white flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <div class="w-16 h-16 rounded-2xl bg-brand-600 flex flex-col items-center justify-center shrink-0 shadow-md">
+                  <span class="text-2xl font-extrabold leading-none">${sel.letter}${sel.lower}</span>
+                  <span class="text-[11px] font-bold text-blue-100 mt-1">${sel.nameTr}</span>
                 </div>
                 <div>
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-400 text-slate-950">
-                      TÜRKÇE OKUNUŞU: "${sel.nameTr.toUpperCase()}"
-                    </span>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/15 text-white">
-                      ${selAnchor.emoji} Görsel Çapa: ${selAnchor.keyword}
-                    </span>
-                  </div>
-                  <p class="text-sm sm:text-base text-slate-200 mt-2.5 leading-relaxed">
-                    <strong class="text-amber-300">👄 Ağız & Dil Pozisyonu:</strong> ${sel.mouthTip}
-                  </p>
+                  <span class="chip chip-brand">Okunuşu: "${sel.nameTr.toUpperCase()}" (${sel.ipa})</span>
+                  <div class="text-sm font-bold text-white mt-1.5">${selAnchor.emoji} Görsel Çapa: ${selAnchor.keyword}</div>
                 </div>
               </div>
-              <div class="flex flex-wrap sm:flex-col gap-2 shrink-0">
-                <div class="flex gap-2">
-                  <button onclick="speakText('${sel.letter.toLowerCase()}', 0.9)" class="flex-1 bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow">🔊 Harfi Dinle</button>
-                  <button onclick="speakText('${sel.letter.toLowerCase()}', 0.55)" class="bg-white/15 hover:bg-white/25 text-white font-bold px-3 py-2.5 rounded-xl text-sm">🐢 Yavaş</button>
-                </div>
-                <button onclick="toggleMasterLetter('${sel.letter}')" class="px-4 py-2 rounded-xl font-bold text-xs ${isMastered ? 'bg-emerald-500 text-white' : 'bg-white/10 text-slate-300'}">
-                  ${isMastered ? '✓ Bu Harfi Öğrendim' : 'Öğrendim Olarak İşaretle'}
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="speakText('${sel.letter.toLowerCase()}', 0.9)" class="speak-btn" title="Harfi Dinle">
+                  ${icon('volume', 'w-4 h-4')}
+                </button>
+                <button onclick="speakText('${sel.letter.toLowerCase()}', 0.55)" class="speak-btn" title="Yavaş Dinle">
+                  🐢
                 </button>
               </div>
             </div>
-          </div>
 
-          <div class="p-5 sm:p-6 space-y-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/50">
-                <div class="text-indigo-700 dark:text-indigo-300 font-bold text-sm mb-1">📖 Kelime İçinde Nasıl Okunur?</div>
-                <p class="text-sm text-slate-700 dark:text-slate-300">${sel.soundVariations}</p>
+            <div class="p-5 space-y-4">
+              <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 text-xs space-y-1">
+                <div class="font-bold text-slate-900 dark:text-white">👄 Ağız & Dil Pozisyonu:</div>
+                <p class="muted leading-relaxed">${sel.mouthTip}</p>
               </div>
+
+              <div class="p-3.5 rounded-xl bg-brand-50/50 dark:bg-brand-950/30 border border-brand-200/70 dark:border-brand-900/50 text-xs space-y-1">
+                <div class="font-bold text-brand-700 dark:text-brand-300">📖 Kelime İçinde Nasıl Okunur?</div>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed">${sel.soundVariations}</p>
+              </div>
+
               ${sel.turkishTrap ? `
-                <div class="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-300/60 dark:border-amber-800/50">
-                  <div class="text-amber-800 dark:text-amber-300 font-bold text-sm mb-1">⚠️ Türklerin En Sık Düştüğü Tuzak!</div>
-                  <p class="text-sm text-slate-700 dark:text-slate-300">${sel.turkishTrap}</p>
+                <div class="p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 text-xs space-y-1">
+                  <div class="font-bold text-amber-800 dark:text-amber-300">⚠️ Sık Yapılan Telaffuz Hatası:</div>
+                  <p class="text-slate-700 dark:text-slate-300 leading-relaxed">${sel.turkishTrap}</p>
                 </div>
               ` : ''}
-            </div>
 
-            <div>
-              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">${sel.letter} Harfinin Kelime İçindeki Canlı Örnekleri (Dinle & Mikrofonla Söyle)</h3>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="space-y-2">
+                <div class="eyebrow">${sel.letter} HARFİ CANLI KELİME ÖRNEKLERİ</div>
                 ${sel.examples.map((ex, idx) => `
-                  <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex flex-col justify-between gap-3">
-                    <div>
-                      <div class="flex items-center justify-between">
-                        <span class="text-lg font-black">${ex.word}</span>
-                        <span class="text-xs font-mono text-slate-400">${ex.ipa}</span>
+                  <div class="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                      <div>
+                        <span class="font-extrabold text-sm text-slate-900 dark:text-white">${ex.word}</span>
+                        <span class="ml-1.5 text-xs font-semibold text-brand-600 dark:text-brand-400">[${ex.trRead}]</span>
+                        <span class="text-xs muted ml-1">= ${ex.meaning}</span>
                       </div>
-                      <div class="mt-1 flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-extrabold">Okunuşu: ${ex.trRead}</span>
-                        <span class="text-xs font-semibold">= ${ex.meaning}</span>
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button onclick="speakText('${ex.word}', 0.95)" class="btn btn-primary btn-sm">Dinle</button>
+                        <button onclick="practiceSpeech('${ex.word}', 'alpha-speech-${idx}')" class="btn btn-secondary btn-sm" title="Mikrofonla Söyle">🎙️</button>
                       </div>
-                      <p class="text-xs text-slate-500 mt-2">💡 ${ex.soundNote}</p>
                     </div>
-                    <div>
-                      <div class="flex items-center gap-1.5 pt-2 border-t border-slate-200/70 dark:border-slate-700/60">
-                        <button onclick="speakText('${ex.word}', 0.95)" class="flex-1 py-2 px-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">🔊 Dinle</button>
-                        <button onclick="speakText('${ex.word}', 0.55)" class="py-2 px-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-bold">🐢</button>
-                        <button onclick="practiceSpeech('${ex.word}', 'alpha-speech-${idx}')" class="py-2 px-2.5 rounded-xl bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 text-xs font-bold">🎙️ Söyle</button>
-                      </div>
-                      <div id="alpha-speech-${idx}"></div>
-                    </div>
+                    <p class="text-[11px] muted">${ex.soundNote}</p>
+                    <div id="alpha-speech-${idx}"></div>
                   </div>
                 `).join('')}
               </div>
+
+              <button onclick="toggleMasterLetter('${sel.letter}')" class="btn ${isMastered ? 'btn-success' : 'btn-outline'} btn-md w-full">
+                ${isMastered ? '✓ Bu Harf Tamamlandı' : 'Harfi Öğrendim Olarak İşaretle (+10 XP)'}
+              </button>
             </div>
           </div>
+
         </div>
       ` : `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           ${PHONETIC_RULES.map((rule) => {
             const done = state.progress.masteredRules.includes(rule.id);
             return `
-              <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col justify-between gap-4">
+              <div class="card p-5 flex flex-col justify-between gap-4">
                 <div class="space-y-3">
                   <div class="flex items-start justify-between gap-2">
                     <div>
-                      <span class="inline-block px-3 py-1 rounded-xl bg-indigo-600 text-white font-black text-sm">${rule.combo}</span>
-                      <span class="ml-2 text-xs font-mono text-slate-400">IPA: ${rule.ipa}</span>
-                      <h3 class="text-lg font-extrabold mt-2">${rule.title}</h3>
+                      <span class="chip chip-brand">${rule.combo} • IPA: ${rule.ipa}</span>
+                      <h3 class="text-base font-bold text-slate-900 dark:text-white mt-1.5">${rule.title}</h3>
                     </div>
-                    <button onclick="toggleMasterRule('${rule.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold ${done ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'}">
+                    <button onclick="toggleMasterRule('${rule.id}')" class="btn ${done ? 'btn-success' : 'btn-secondary'} btn-sm">
                       ${done ? '✓ Öğrenildi' : 'Tamamla'}
                     </button>
                   </div>
-                  <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-xs font-bold text-amber-900 dark:text-amber-300">🎯 Türkçe Karşılığı: ${rule.trApprox}</div>
-                  <p class="text-sm text-slate-600 dark:text-slate-300">${rule.howToProduce}</p>
-                  <div class="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 text-xs text-indigo-900 dark:text-indigo-200">${rule.mnemonicTip}</div>
+                  <div class="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 text-xs font-semibold text-amber-900 dark:text-amber-300">
+                    🎯 Türkçe Karşılığı: ${rule.trApprox}
+                  </div>
+                  <p class="text-xs sm:text-sm muted leading-relaxed">${rule.howToProduce}</p>
+                  <div class="p-3 rounded-xl bg-brand-50/60 dark:bg-brand-950/30 text-xs text-brand-900 dark:text-brand-200">${rule.mnemonicTip}</div>
                 </div>
                 <div class="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                   ${rule.examples.map((ex) => `
                     <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60">
                       <div>
-                        <span class="font-extrabold text-sm">${ex.word}</span>
-                        <span class="ml-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">[${ex.trRead}]</span>
-                        <span class="block text-xs text-slate-500">${ex.meaning}</span>
+                        <span class="font-bold text-sm text-slate-900 dark:text-white">${ex.word}</span>
+                        <span class="ml-2 text-xs font-semibold text-brand-600 dark:text-brand-400">[${ex.trRead}]</span>
+                        <span class="block text-xs muted">${ex.meaning}</span>
                       </div>
                       <div class="flex gap-1.5">
-                        <button onclick="speakText('${ex.word.replace(/'/g, "\\'")}', 0.9)" class="p-2 rounded-xl bg-indigo-600 text-white text-xs">🔊</button>
-                        <button onclick="speakText('${ex.word.replace(/'/g, "\\'")}', 0.55)" class="p-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs">🐢</button>
+                        <button onclick="speakText('${ex.word.replace(/'/g, "\\'")}', 0.9)" class="speak-btn speak-btn-sm">${icon('volume', 'w-4 h-4')}</button>
+                        <button onclick="speakText('${ex.word.replace(/'/g, "\\'")}', 0.55)" class="speak-btn speak-btn-sm">🐢</button>
                       </div>
                     </div>
                   `).join('')}
@@ -1264,7 +1401,7 @@ function renderAlphabet() {
   `;
 }
 
-// --- 4. SOHBET & KALIPLAR ---
+// --- 4. SOHBET & DİYALOG SİMÜLATÖRÜ ---
 function renderConversations() {
   const phrases = PHRASE_PATTERNS.filter((p) => {
     const catOk = state.phraseCat === 'all' ? true : p.category === state.phraseCat;
@@ -1274,36 +1411,40 @@ function renderConversations() {
   const activeSc = CONVERSATION_SCENARIOS.find((s) => s.id === state.scenarioId) || CONVERSATION_SCENARIOS[0];
 
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
+    <div class="space-y-6 pb-8 anim-in">
       ${renderLevelFilterBar()}
 
-      <div class="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-3xl p-5 sm:p-6 text-white shadow-lg">
-        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-white/20 mb-2">💬 GERÇEK HAYAT & İŞ İNGİLİZCESİ</span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold">Günlük Sohbetler, İş İngilizcesi & Rol Canlandırma</h1>
-        <p class="text-emerald-100 text-sm mt-1">Seviyene göre günlük kalıplar, birebir mantık karşılaştırması ve mikrofonlu diyalog simülasyonu.</p>
-        <div class="grid grid-cols-2 gap-2 mt-5 bg-black/20 p-1.5 rounded-2xl">
-          <button onclick="setConvSub('patterns')" class="py-2.5 px-4 rounded-xl font-bold text-sm transition ${state.convSub === 'patterns' ? 'bg-white text-emerald-800 shadow' : 'text-white/80'}">
-            ⚡ Hayat Kurtaran Kalıplar (${phrases.length} Kalıp)
+      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="chip chip-green">GERÇEK HAYAT & İŞ İNGİLİZCESİ</span>
+          <h1 class="h1">Günlük Konuşma Kalıpları & Diyalog Simülatörü</h1>
+          <p class="text-sm muted">Seviyene göre günlük kalıplar, birebir mantık karşılaştırması ve mikrofonlu rol canlandırma.</p>
+        </div>
+        <div class="seg shrink-0">
+          <button onclick="setConvSub('patterns')" class="seg-item ${state.convSub === 'patterns' ? 'seg-active' : ''}">
+            Günlük Kalıplar (${phrases.length})
           </button>
-          <button onclick="setConvSub('dialogues')" class="py-2.5 px-4 rounded-xl font-bold text-sm transition ${state.convSub === 'dialogues' ? 'bg-white text-emerald-800 shadow' : 'text-white/80'}">
-            🎭 Rol Canlandırma (${state.progress.completedScenarios.length}/${CONVERSATION_SCENARIOS.length})
+          <button onclick="setConvSub('dialogues')" class="seg-item ${state.convSub === 'dialogues' ? 'seg-active' : ''}">
+            Rol Canlandırma (${state.progress.completedScenarios.length}/${CONVERSATION_SCENARIOS.length})
           </button>
         </div>
       </div>
 
       ${state.convSub === 'patterns' ? `
-        <div class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           ${PHRASE_CATEGORIES.map((c) => `
-            <button onclick="setPhraseCat('${c.id}')" class="shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold border transition ${
-              state.phraseCat === c.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            <button onclick="setPhraseCat('${c.id}')" class="shrink-0 px-3.5 h-9 rounded-xl text-xs font-semibold border transition ${
+              state.phraseCat === c.id
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white dark:bg-ink-900 border-slate-200 dark:border-slate-800 hover:border-slate-300'
             }">${c.emoji} ${c.label}</button>
           `).join('')}
         </div>
 
         ${phrases.length === 0 ? `
-          <div class="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3">
-            <p class="text-sm font-bold text-slate-500">Seçili seviye (${state.selectedLevel}) ve kategoride kalıp bulunamadı.</p>
-            <button onclick="setGlobalLevel('ALL'); setPhraseCat('all')" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Tüm Seviyeleri Göster</button>
+          <div class="card p-8 text-center space-y-3">
+            <p class="text-sm font-semibold muted">Seçili seviye (${state.selectedLevel}) ve kategoride kalıp bulunamadı.</p>
+            <button onclick="setGlobalLevel('ALL'); setPhraseCat('all')" class="btn btn-primary btn-sm">Tüm Seviyeleri Göster</button>
           </div>
         ` : `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1311,31 +1452,36 @@ function renderConversations() {
               const done = state.progress.masteredPhrases.includes(item.id);
               const safeEn = item.en.replace(/'/g, "\\'");
               return `
-                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col justify-between gap-4">
+                <div class="card p-5 flex flex-col justify-between gap-4">
                   <div class="space-y-3">
                     <div class="flex items-center justify-between gap-2">
-                      <span class="px-2.5 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-extrabold">Seviye ${item.level} • ${item.usageContext}</span>
-                      <button onclick="toggleMasterPhrase('${item.id}')" class="px-2.5 py-1 rounded-xl text-xs font-bold ${done ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
-                        ${done ? '✓ Ezberlendi' : 'Öğrendim'}
+                      <span class="chip chip-brand">Seviye ${item.level} • ${item.usageContext}</span>
+                      <button onclick="toggleMasterPhrase('${item.id}')" class="btn ${done ? 'btn-success' : 'btn-secondary'} btn-sm">
+                        ${done ? '✓ Öğrenildi' : 'Öğrendim'}
                       </button>
                     </div>
                     <div>
-                      <h3 class="text-xl font-black">"${item.en}"</h3>
-                      <div class="mt-1.5 inline-block px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-xs font-extrabold">🗣️ Okunuşu: ${item.trRead}</div>
+                      <h3 class="text-lg font-extrabold text-slate-900 dark:text-white">"${item.en}"</h3>
+                      <div class="mt-1 inline-block px-2.5 py-0.5 rounded-md bg-brand-50 dark:bg-brand-950/70 text-brand-700 dark:text-brand-300 text-xs font-semibold">
+                        🗣️ Okunuşu: ${item.trRead}
+                      </div>
                     </div>
-                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
-                      <div class="text-sm font-extrabold">🇹🇷 Doğal Anlamı: ${item.trMeaning}</div>
-                      <div class="text-xs text-slate-500">🔍 Birebir Mantığı: "${item.literalTr}"</div>
+                    <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
+                      <div class="text-sm font-bold text-slate-900 dark:text-white">🇹🇷 Doğal Anlamı: ${item.trMeaning}</div>
+                      <div class="text-xs muted">🔍 Kelime Mantığı: "${item.literalTr}"</div>
                     </div>
-                    <div class="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/60 text-xs text-amber-900 dark:text-amber-200">
-                      <strong>🧠 Akılda Tutma Şifresi:</strong> ${item.memoryHook}
+                    <div class="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/50 text-xs text-amber-900 dark:text-amber-200">
+                      <strong>🧠 Hafıza İpucu:</strong> ${item.memoryHook}
                     </div>
                   </div>
                   <div>
                     <div class="flex items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <button onclick="speakText('${safeEn}', 0.95)" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold">🔊 Dinle</button>
-                      <button onclick="speakText('${safeEn}', 0.6)" class="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-bold">🐢 Yavaş</button>
-                      <button onclick="practiceSpeech('${safeEn}', 'phrase-sp-${item.id}')" class="py-2.5 px-3 rounded-xl bg-rose-600 text-white text-xs font-bold">🎙️ Söyle</button>
+                      <button onclick="speakText('${safeEn}', 0.95)" class="btn btn-primary btn-sm flex-1">
+                        ${icon('volume', 'w-4 h-4')}
+                        <span>Dinle</span>
+                      </button>
+                      <button onclick="speakText('${safeEn}', 0.6)" class="btn btn-secondary btn-sm">🐢 Yavaş</button>
+                      <button onclick="practiceSpeech('${safeEn}', 'phrase-sp-${item.id}')" class="btn btn-outline btn-sm">🎙️ Söyle</button>
                     </div>
                     <div id="phrase-sp-${item.id}"></div>
                   </div>
@@ -1348,53 +1494,55 @@ function renderConversations() {
         <div class="space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             ${CONVERSATION_SCENARIOS.map((sc) => `
-              <button onclick="selectScenario('${sc.id}')" class="p-4 rounded-2xl border-2 text-left transition ${
-                activeSc.id === sc.id ? 'border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/50' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+              <button onclick="selectScenario('${sc.id}')" class="card p-4 text-left transition ${
+                activeSc.id === sc.id ? 'border-brand-600 ring-2 ring-brand-500/20' : 'hover:border-slate-300'
               }">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-xs font-extrabold px-2 py-0.5 rounded-md bg-emerald-600 text-white">${sc.level}</span>
-                  ${state.progress.completedScenarios.includes(sc.id) ? `<span class="text-xs font-bold text-emerald-600">✓ Tamamlandı</span>` : ''}
+                  <span class="chip chip-brand">${sc.level}</span>
+                  ${state.progress.completedScenarios.includes(sc.id) ? `<span class="chip chip-green">✓ Bitti</span>` : ''}
                 </div>
-                <h3 class="font-extrabold text-sm mt-1">${sc.title}</h3>
-                <p class="text-xs text-slate-500 mt-0.5">${sc.subtitle}</p>
+                <h3 class="font-bold text-sm text-slate-900 dark:text-white mt-1">${sc.title}</h3>
+                <p class="text-xs muted mt-0.5">${sc.subtitle}</p>
               </button>
             `).join('')}
           </div>
 
-          <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4">
+          <div class="card p-5 sm:p-6 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h2 class="text-xl font-black">${activeSc.title}</h2>
-                <p class="text-xs text-slate-500">Her satırı dinle ve mikrofon butonuna basarak telaffuzunu test et!</p>
+                <h2 class="h2">${activeSc.title}</h2>
+                <p class="text-xs muted">Her satırı dinle ve mikrofon butonuna basarak telaffuzunu test et.</p>
               </div>
-              <button onclick="completeScenario('${activeSc.id}')" class="px-4 py-2 rounded-xl text-xs font-bold ${
-                state.progress.completedScenarios.includes(activeSc.id) ? 'bg-emerald-500 text-white' : 'bg-emerald-600 text-white'
-              }">
+              <button onclick="completeScenario('${activeSc.id}')" class="btn ${
+                state.progress.completedScenarios.includes(activeSc.id) ? 'btn-success' : 'btn-primary'
+              } btn-sm">
                 ${state.progress.completedScenarios.includes(activeSc.id) ? '✓ Senaryo Tamamlandı' : 'Senaryoyu Bitirdim (+25 XP)'}
               </button>
             </div>
-            <div class="space-y-4">
+            <div class="space-y-3.5">
               ${activeSc.lines.map((line, idx) => {
                 const isUser = line.speaker === 'B';
                 const safeLine = line.en.replace(/'/g, "\\'");
                 return `
                   <div class="flex flex-col ${isUser ? 'items-end' : 'items-start'}">
-                    <div class="max-w-xl w-full rounded-3xl p-4 sm:p-5 border ${
-                      isUser ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
+                    <div class="max-w-xl w-full rounded-2xl p-4 border ${
+                      isUser
+                        ? 'bg-brand-50/60 dark:bg-brand-950/30 border-brand-200 dark:border-brand-900/60'
+                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200/80 dark:border-slate-700'
                     }">
                       <div class="flex items-center justify-between gap-2 mb-1.5">
-                        <span class="text-xs font-extrabold px-2.5 py-0.5 rounded-full ${isUser ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-white'}">
+                        <span class="chip ${isUser ? 'chip-brand' : 'chip-slate'}">
                           ${isUser ? '🎙️ SENİN SIRAN' : `👤 ${line.speakerName}`}
                         </span>
                         <div class="flex items-center gap-1.5">
-                          <button onclick="speakText('${safeLine}', 0.95)" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 text-xs font-bold shadow-sm">🔊</button>
-                          <button onclick="speakText('${safeLine}', 0.6)" class="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 text-xs font-bold shadow-sm">🐢</button>
-                          <button onclick="practiceSpeech('${safeLine}', 'dlg-sp-${idx}')" class="px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-bold shadow-sm">🎙️ Sesli Söyle</button>
+                          <button onclick="speakText('${safeLine}', 0.95)" class="speak-btn speak-btn-sm">${icon('volume', 'w-3.5 h-3.5')}</button>
+                          <button onclick="speakText('${safeLine}', 0.6)" class="speak-btn speak-btn-sm">🐢</button>
+                          <button onclick="practiceSpeech('${safeLine}', 'dlg-sp-${idx}')" class="btn btn-primary btn-sm">🎙️ Söyle</button>
                         </div>
                       </div>
-                      <p class="text-base sm:text-lg font-extrabold">${line.en}</p>
-                      <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-1">🗣️ Okunuşu: ${line.trRead}</p>
-                      <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">🇹🇷 ${line.trMeaning}</p>
+                      <p class="text-base font-bold text-slate-900 dark:text-white">${line.en}</p>
+                      <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-1">🗣️ Okunuşu: ${line.trRead}</p>
+                      <p class="text-xs sm:text-sm muted mt-0.5">🇹🇷 ${line.trMeaning}</p>
                       ${line.tip ? `<div class="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-700 text-xs text-amber-800 dark:text-amber-300">💡 ${line.tip}</div>` : ''}
                       <div id="dlg-sp-${idx}"></div>
                     </div>
@@ -1409,7 +1557,7 @@ function renderConversations() {
   `;
 }
 
-// --- 5. ZAMİRLER, GÖRSEL ŞEMALAR & 15+ TABLOLAR ---
+// --- 5. ZAMİRLER, GÖRSEL ŞEMALAR & 21 TABLO STÜDYOSU ---
 function renderGrammar() {
   const filteredTables =
     state.selectedLevel === 'ALL'
@@ -1428,24 +1576,27 @@ function renderGrammar() {
   const isTenseDone = state.progress.masteredTenses.includes(selTense.id);
 
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
+    <div class="space-y-6 pb-8 anim-in">
       ${renderLevelFilterBar()}
 
-      <div class="modern-hero rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-slate-800">
-        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 border border-blue-400/30 text-blue-300 mb-2">📊 GÖRSEL ZAMİR TABLOLARI & ZAMAN ÇİZELGELERİ</span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold">Şahıs/Kişi Zamirleri, Yapı Tabloları & Görsel Zamanlar</h1>
-        <p class="text-slate-300 text-sm mt-1">
-          Zamirlerin cümledeki renkli konum şeması, IN-ON-AT görsel piramidi, ${REFERENCE_TABLES.length} detaylı tablo ve zaman çizelgeleri (Timelines).
-        </p>
-        <div class="grid grid-cols-3 gap-2 mt-5 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/80">
-          <button onclick="setGramSub('tables')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.gramSub === 'tables' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            📊 Konu & Zamir Tabloları (${REFERENCE_TABLES.length})
+      <!-- Üst Başlık & Sekme Seçici -->
+      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="chip chip-brand">ZAMİR TABLOLARI & GÖRSEL ZAMANLAR</span>
+          <h1 class="h1">Şahıs/Kişi Zamirleri, Yapı Tabloları & Zaman Çizelgeleri</h1>
+          <p class="text-sm muted">
+            Zamirlerin cümledeki renkli konum şeması, IN-ON-AT görsel piramidi, ${REFERENCE_TABLES.length} detaylı tablo ve SVG zaman çizelgeleri.
+          </p>
+        </div>
+        <div class="seg shrink-0">
+          <button onclick="setGramSub('tables')" class="seg-item ${state.gramSub === 'tables' ? 'seg-active' : ''}">
+            Konu & Zamir Tabloları (${REFERENCE_TABLES.length})
           </button>
-          <button onclick="setGramSub('tenses')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.gramSub === 'tenses' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            ⏳ Görsel Zamanlar (${GRAMMAR_TENSES.length})
+          <button onclick="setGramSub('tenses')" class="seg-item ${state.gramSub === 'tenses' ? 'seg-active' : ''}">
+            Görsel Zamanlar (${GRAMMAR_TENSES.length})
           </button>
-          <button onclick="setGramSub('rules')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.gramSub === 'rules' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            🧱 Altın Kurallar (4)
+          <button onclick="setGramSub('rules')" class="seg-item ${state.gramSub === 'rules' ? 'seg-active' : ''}">
+            Altın Kurallar (4)
           </button>
         </div>
       </div>
@@ -1459,60 +1610,56 @@ function renderGrammar() {
             const active = activeTable.id === tbl.id;
             const done = state.progress.masteredTables.includes(tbl.id);
             return `
-              <button onclick="selectTable('${tbl.id}')" class="p-3.5 rounded-xl border text-left transition ${
+              <button onclick="selectTable('${tbl.id}')" class="p-3.5 rounded-2xl border text-left transition ${
                 active
-                  ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 shadow-sm ring-1 ring-blue-600'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400'
+                  ? 'border-brand-600 bg-brand-50/70 dark:bg-brand-950/40 ring-2 ring-brand-500/20 shadow-sm'
+                  : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-ink-900 hover:border-brand-400'
               }">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-600 text-white">Seviye ${tbl.level} • ${tbl.category}</span>
-                  ${done ? `<span class="text-emerald-500 text-xs font-black">✓</span>` : ''}
+                  <span class="chip chip-brand">Seviye ${tbl.level} • ${tbl.category}</span>
+                  ${done ? `<span class="chip chip-green">✓</span>` : ''}
                 </div>
-                <div class="font-extrabold text-xs sm:text-sm leading-snug mt-1 text-slate-900 dark:text-white">${tbl.title}</div>
+                <div class="font-bold text-xs sm:text-sm leading-snug mt-1.5 text-slate-900 dark:text-white">${tbl.title}</div>
               </button>
             `;
           }).join('')}
         </div>
 
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 modern-card overflow-hidden">
-          <div class="p-5 sm:p-6 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800">
-            <div>
-              <span class="inline-block px-2.5 py-0.5 rounded-md bg-blue-600 text-white text-xs font-bold mb-2">
-                SEVİYE ${activeTable.level} • ${activeTable.category.toUpperCase()}
-              </span>
-              <h2 class="text-xl sm:text-2xl font-extrabold">${activeTable.title}</h2>
-              <p class="text-slate-300 text-xs sm:text-sm mt-1">${activeTable.subtitle}</p>
+        <div class="card overflow-hidden">
+          <div class="p-5 sm:p-6 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="chip chip-brand">SEVİYE ${activeTable.level} • ${activeTable.category.toUpperCase()}</span>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-white pt-1">${activeTable.title}</h2>
+              <p class="text-slate-300 text-xs sm:text-sm">${activeTable.subtitle}</p>
             </div>
-            <button onclick="toggleMasterTable('${activeTable.id}')" class="self-start sm:self-auto px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 transition ${
-              isTableDone ? 'bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
-            }">
-              ${isTableDone ? '✓ Bu Tabloyu Öğrendim' : 'Tabloyu Öğrendim İşaretle (+25 XP)'}
+            <button onclick="toggleMasterTable('${activeTable.id}')" class="btn ${isTableDone ? 'btn-success' : 'btn-primary'} btn-sm self-start sm:self-auto shrink-0">
+              ${isTableDone ? '✓ Bu Tabloyu Öğrendim' : 'Tabloyu Öğrendim (+25 XP)'}
             </button>
           </div>
 
           <div class="p-5 sm:p-6 space-y-6">
-            <div class="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 space-y-2">
-              <div class="text-xs font-extrabold uppercase text-blue-800 dark:text-blue-300">📌 BU TABLODAKİ YAPILAR CÜMLEDE NASIL KULLANILIR?</div>
-              <ul class="space-y-1.5 text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium">
+            <div class="p-4 rounded-xl bg-brand-50/60 dark:bg-brand-950/30 border border-brand-200/70 dark:border-brand-900/50 space-y-2">
+              <div class="text-xs font-extrabold uppercase text-brand-800 dark:text-brand-300">📌 BU TABLODAKİ YAPILAR CÜMLEDE NASIL KULLANILIR?</div>
+              <ul class="space-y-1.5 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium">
                 ${activeTable.howToUse.map((tip) => `<li>${tip}</li>`).join('')}
               </ul>
             </div>
 
-            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-              <table class="w-full text-left border-collapse min-w-[680px]">
+            <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+              <table class="data-table min-w-[680px]">
                 <thead>
-                  <tr class="bg-slate-900 text-white text-xs uppercase">
-                    ${activeTable.headers.map((h) => `<th class="p-3.5 font-extrabold border-r border-slate-700 last:border-0 whitespace-pre-line">${h}</th>`).join('')}
+                  <tr>
+                    ${activeTable.headers.map((h) => `<th class="whitespace-pre-line">${h}</th>`).join('')}
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-800 text-xs sm:text-sm">
-                  ${activeTable.rows.map((row, rIdx) => `
-                    <tr class="${rIdx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/80 dark:bg-slate-800/40'} hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition">
+                <tbody>
+                  ${activeTable.rows.map((row) => `
+                    <tr>
                       ${row.map((cell, cIdx) => `
-                        <td class="p-3.5 border-r border-slate-100 dark:border-slate-800 last:border-0 whitespace-pre-line ${
+                        <td class="whitespace-pre-line ${
                           cIdx === 0
-                            ? 'font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50/40 dark:bg-blue-950/20'
-                            : 'font-semibold text-slate-800 dark:text-slate-200'
+                            ? 'font-extrabold text-brand-700 dark:text-brand-300 bg-brand-50/40 dark:bg-brand-950/20'
+                            : 'font-medium text-slate-800 dark:text-slate-200'
                         }">${cell}</td>
                       `).join('')}
                     </tr>
@@ -1522,22 +1669,25 @@ function renderGrammar() {
             </div>
 
             <div class="space-y-3">
-              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400">🔊 Tablonun Canlı Cümle İçinde Kullanımı (Dinle & Söyle)</h3>
-              <div class="grid grid-cols-1 gap-3">
+              <div class="eyebrow">TABLONUN CANLI CÜMLE İÇİNDE KULLANIMI (DİNLE & SÖYLE)</div>
+              <div class="grid grid-cols-1 gap-2.5">
                 ${activeTable.liveExamples.map((ex, idx) => {
                   const safeEn = ex.en.replace(/'/g, "\\'");
                   return `
-                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
-                        <p class="text-base font-extrabold text-slate-900 dark:text-white">${ex.en}</p>
-                        <p class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">🗣️ Okunuşu: ${ex.trRead}</p>
-                        <p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">🇹🇷 ${ex.tr}</p>
+                        <p class="text-base font-bold text-slate-900 dark:text-white">${ex.en}</p>
+                        <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-0.5">🗣️ Okunuşu: ${ex.trRead}</p>
+                        <p class="text-xs muted mt-0.5">🇹🇷 ${ex.tr}</p>
                         <div id="tbl-sp-${idx}"></div>
                       </div>
                       <div class="flex items-center gap-2 shrink-0">
-                        <button onclick="speakText('${safeEn}', 0.95)" class="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition">🔊 Dinle</button>
-                        <button onclick="speakText('${safeEn}', 0.6)" class="p-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs font-bold">🐢</button>
-                        <button onclick="practiceSpeech('${safeEn}', 'tbl-sp-${idx}')" class="px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold">🎙️ Söyle</button>
+                        <button onclick="speakText('${safeEn}', 0.95)" class="btn btn-primary btn-sm">
+                          ${icon('volume', 'w-4 h-4')}
+                          <span>Dinle</span>
+                        </button>
+                        <button onclick="speakText('${safeEn}', 0.6)" class="btn btn-secondary btn-sm">🐢</button>
+                        <button onclick="practiceSpeech('${safeEn}', 'tbl-sp-${idx}')" class="btn btn-outline btn-sm">🎙️ Söyle</button>
                       </div>
                     </div>
                   `;
@@ -1549,69 +1699,69 @@ function renderGrammar() {
       ` : state.gramSub === 'tenses' ? `
         <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
           ${GRAMMAR_TENSES.map((t) => `
-            <button onclick="selectTense('${t.id}')" class="p-3.5 rounded-xl border text-left transition ${
-              selTense.id === t.id ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+            <button onclick="selectTense('${t.id}')" class="p-3.5 rounded-2xl border text-left transition ${
+              selTense.id === t.id
+                ? 'border-brand-600 bg-brand-50/70 dark:bg-brand-950/40 ring-2 ring-brand-500/20'
+                : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-ink-900 hover:border-brand-400'
             }">
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-blue-600 text-white">Seviye ${t.level}</span>
-                ${state.progress.masteredTenses.includes(t.id) ? `<span class="text-emerald-500 text-xs font-bold">✓</span>` : ''}
+                <span class="chip chip-brand">Seviye ${t.level}</span>
+                ${state.progress.masteredTenses.includes(t.id) ? `<span class="chip chip-green">✓</span>` : ''}
               </div>
-              <div class="font-extrabold text-xs sm:text-sm">${t.nameEn}</div>
-              <div class="text-[11px] text-slate-500 mt-0.5">${t.nameTr}</div>
+              <div class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white mt-1">${t.nameEn}</div>
+              <div class="text-[11px] muted mt-0.5">${t.nameTr}</div>
             </button>
           `).join('')}
         </div>
 
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 modern-card p-5 sm:p-6 space-y-5">
+        <div class="card p-5 sm:p-6 space-y-5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <div class="inline-block px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-extrabold mb-2">
-                Seviye ${selTense.level} • 🇹🇷 Türkçe Karşılığı: ${selTense.trSuffix}
-              </div>
-              <h2 class="text-2xl font-extrabold">${selTense.nameEn} — ${selTense.nameTr}</h2>
-              <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">${selTense.coreLogic}</p>
+            <div class="space-y-1">
+              <span class="chip chip-brand">Seviye ${selTense.level} • 🇹🇷 Türkçe Karşılığı: ${selTense.trSuffix}</span>
+              <h2 class="h1 pt-1">${selTense.nameEn} — ${selTense.nameTr}</h2>
+              <p class="text-sm muted">${selTense.coreLogic}</p>
             </div>
-            <button onclick="toggleMasterTense('${selTense.id}')" class="px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 ${isTenseDone ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800'}">
-              ${isTenseDone ? '✓ Bu Zamanı Öğrendim' : 'Öğrendim Olarak İşaretle'}
+            <button onclick="toggleMasterTense('${selTense.id}')" class="btn ${isTenseDone ? 'btn-success' : 'btn-secondary'} btn-sm shrink-0">
+              ${isTenseDone ? '✓ Bu Zamanı Öğrendim' : 'Öğrendim İşaretle'}
             </button>
           </div>
 
           <!-- Görsel Zaman Çizelgesi (SVG Timeline) -->
           ${renderTenseTimelineSVG(selTense.id)}
 
-          <div class="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 text-sm text-slate-800 dark:text-slate-200 font-medium">
+          <div class="p-4 rounded-xl bg-brand-50/60 dark:bg-brand-950/30 border border-brand-200/70 dark:border-brand-900/50 text-sm text-slate-800 dark:text-slate-200 font-medium">
             ${selTense.memoryCode}
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div class="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60">
+            <div class="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/50">
               <div class="text-emerald-700 dark:text-emerald-300 font-extrabold text-xs uppercase mb-1">➕ Olumlu Cümle (+)</div>
               <div class="font-mono text-sm font-bold">${selTense.formula.positive}</div>
             </div>
-            <div class="p-4 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60">
+            <div class="p-4 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/50">
               <div class="text-rose-700 dark:text-rose-300 font-extrabold text-xs uppercase mb-1">➖ Olumsuz Cümle (-)</div>
               <div class="font-mono text-sm font-bold">${selTense.formula.negative}</div>
             </div>
-            <div class="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60">
-              <div class="text-blue-700 dark:text-blue-300 font-extrabold text-xs uppercase mb-1">❓ Soru Cümlesi (?)</div>
+            <div class="p-4 rounded-xl bg-brand-50/60 dark:bg-brand-950/30 border border-brand-200/70 dark:border-brand-900/50">
+              <div class="text-brand-700 dark:text-brand-300 font-extrabold text-xs uppercase mb-1">❓ Soru Cümlesi (?)</div>
               <div class="font-mono text-sm font-bold">${selTense.formula.question}</div>
             </div>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-2.5">
             ${selTense.examples.map((ex) => {
               const safeEn = ex.en.replace(/'/g, "\\'");
               return `
                 <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div class="space-y-1">
-                    <span class="text-xs font-bold text-blue-600 dark:text-blue-400">Odak: ${ex.highlight}</span>
-                    <p class="text-base font-extrabold">${ex.en}</p>
-                    <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400">🗣️ Okunuşu: ${ex.trRead}</p>
-                    <p class="text-xs text-slate-600 dark:text-slate-300">🇹🇷 ${ex.tr}</p>
+                  <div class="space-y-0.5">
+                    <span class="text-xs font-bold text-brand-600 dark:text-brand-400">Odak: ${ex.highlight}</span>
+                    <p class="text-base font-bold text-slate-900 dark:text-white">${ex.en}</p>
+                    <p class="text-xs font-semibold text-indigo-600 dark:text-indigo-400">🗣️ Okunuşu: ${ex.trRead}</p>
+                    <p class="text-xs muted">🇹🇷 ${ex.tr}</p>
                   </div>
                   <div class="flex gap-2 shrink-0">
-                    <button onclick="speakText('${safeEn}', 0.95)" class="px-3.5 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold">🔊 Dinle</button>
-                    <button onclick="speakText('${safeEn}', 0.6)" class="p-2 rounded-lg bg-slate-200 dark:bg-slate-700 text-xs">🐢</button>
+                    <button onclick="speakText('${safeEn}', 0.95)" class="btn btn-primary btn-sm">Dinle</button>
+                    <button onclick="speakText('${safeEn}', 0.6)" class="btn btn-secondary btn-sm">🐢</button>
                   </div>
                 </div>
               `;
@@ -1621,18 +1771,18 @@ function renderGrammar() {
       ` : `
         <div class="grid grid-cols-1 gap-4">
           ${CORE_STRUCTURE_RULES.map((rule) => `
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 modern-card p-5 sm:p-6 space-y-4">
+            <div class="card p-5 sm:p-6 space-y-4">
               <div class="flex items-center justify-between">
-                <span class="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-extrabold">✨ ${rule.badge}</span>
-                <button onclick="speakText('${rule.comparison.exampleEn.replace(/'/g, "\\'")}', 0.9)" class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">🔊 Örneği Dinle</button>
+                <span class="chip chip-brand">${rule.badge}</span>
+                <button onclick="speakText('${rule.comparison.exampleEn.replace(/'/g, "\\'")}', 0.9)" class="btn btn-primary btn-sm">Örneği Dinle</button>
               </div>
-              <h3 class="text-xl font-extrabold">${rule.title}</h3>
+              <h3 class="h2">${rule.title}</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div class="p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/60">
-                  <strong class="text-rose-700 block mb-1">❌ Neden Zorlanıyoruz?</strong>${rule.problemTr}
+                <div class="p-3.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-900/50">
+                  <strong class="text-rose-700 dark:text-rose-300 block mb-1">❌ Neden Zorlanıyoruz?</strong>${rule.problemTr}
                 </div>
-                <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60">
-                  <strong class="text-emerald-700 block mb-1">✅ İngilizcenin Çözümü:</strong>${rule.solutionEn}
+                <div class="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/50">
+                  <strong class="text-emerald-700 dark:text-emerald-300 block mb-1">✅ İngilizcenin Çözümü:</strong>${rule.solutionEn}
                 </div>
               </div>
               <div class="p-4 rounded-xl bg-slate-900 text-white space-y-2 font-mono text-xs sm:text-sm">
@@ -1640,7 +1790,7 @@ function renderGrammar() {
                 <div class="text-sky-300 font-bold">${rule.comparison.enOrder}</div>
                 <div class="pt-2 border-t border-slate-700 text-emerald-300">🎯 Canlı Örnek: "${rule.comparison.exampleEn}" (${rule.comparison.exampleRead})</div>
               </div>
-              <div class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-xs font-bold text-blue-900 dark:text-blue-200">${rule.goldenRule}</div>
+              <div class="p-3 rounded-xl bg-brand-50/70 dark:bg-brand-950/40 text-xs font-bold text-brand-900 dark:text-brand-200">${rule.goldenRule}</div>
             </div>
           `).join('')}
         </div>
@@ -1664,22 +1814,25 @@ function renderSRS() {
   const activeExam = LEVEL_EXAMS.find((e) => e.id === state.examId) || LEVEL_EXAMS[0];
 
   return `
-    <div class="space-y-6 pb-8 animate-fadeIn">
+    <div class="space-y-6 pb-8 anim-in">
       ${renderLevelFilterBar()}
 
-      <div class="modern-hero rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-slate-800">
-        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 border border-blue-400/30 text-blue-300 mb-2">🧠 GÖRSEL SAHNELİ HAFIZA (SRS) & SEVİYE SINAVLARI</span>
-        <h1 class="text-2xl sm:text-3xl font-extrabold">Görsel Hafıza Çivileri, Cümle İnşası & Bölüm Sonu Sınavları</h1>
-        <p class="text-slate-300 text-sm mt-1">Kelimeleri resimli hikayelerle beynine kazı, cümle kur ve A1-A2 / B1-B2 / C1-C2 bölüm sonu sınavlarıyla seviyeni ölç!</p>
-        <div class="grid grid-cols-3 gap-2 mt-5 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/80">
-          <button onclick="setSrsSub('flashcards')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.srsSub === 'flashcards' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            🃏 Resimli Kartlar (${MNEMONIC_VOCAB_DATA.length})
+      <!-- Üst Başlık & Alt Sekme Seçici -->
+      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="chip chip-amber">ARALIKLI TEKRAR (SRS) & SEVİYE SINAVLARI</span>
+          <h1 class="h1">Görsel Hafıza Çivileri, Cümle İnşası & Bölüm Sınavları</h1>
+          <p class="text-sm muted">Kelimeleri ses çağrışımlı hikayelerle hafızana kazı, cümle kur ve bölüm sonu sınavlarıyla seviyeni ölç.</p>
+        </div>
+        <div class="seg shrink-0">
+          <button onclick="setSrsSub('flashcards')" class="seg-item ${state.srsSub === 'flashcards' ? 'seg-active' : ''}">
+            Hafıza Kartları (${MNEMONIC_VOCAB_DATA.length})
           </button>
-          <button onclick="setSrsSub('builder')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.srsSub === 'builder' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            🧩 Cümle Kurma (${SENTENCE_CHALLENGES.length})
+          <button onclick="setSrsSub('builder')" class="seg-item ${state.srsSub === 'builder' ? 'seg-active' : ''}">
+            Cümle Kurma (${SENTENCE_CHALLENGES.length})
           </button>
-          <button onclick="setSrsSub('exams')" class="py-2.5 px-2 sm:px-4 rounded-lg font-bold text-xs sm:text-sm transition ${state.srsSub === 'exams' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-300 hover:text-white'}">
-            📝 Bölüm Sonu Sınavları (${LEVEL_EXAMS.length})
+          <button onclick="setSrsSub('exams')" class="seg-item ${state.srsSub === 'exams' ? 'seg-active' : ''}">
+            Seviye Sınavları (${LEVEL_EXAMS.length})
           </button>
         </div>
       </div>
@@ -1687,150 +1840,156 @@ function renderSRS() {
       ${state.srsSub === 'flashcards' ? `
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
           ${MNEMONIC_VOCAB_DATA.map((item, idx) => `
-            <button onclick="selectCardIdx(${idx})" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-              state.cardIdx === idx ? 'bg-blue-600 text-white border-blue-600' : state.progress.srsMap[item.id] ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+            <button onclick="selectCardIdx(${idx})" class="shrink-0 px-3 h-9 rounded-xl text-xs font-bold border transition ${
+              state.cardIdx === idx
+                ? 'bg-brand-600 text-white border-brand-600'
+                : state.progress.srsMap[item.id]
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                  : 'bg-white dark:bg-ink-900 border-slate-200 dark:border-slate-800'
             }">${idx + 1}. ${item.word} (${item.level})</button>
           `).join('')}
         </div>
 
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 modern-card overflow-hidden">
-          <!-- Görsel Hafıza Sahnesi Banner -->
-          <div class="bg-gradient-to-r ${scene.bgGrad} p-6 text-white text-center relative overflow-hidden">
-            <div class="flex items-center justify-between mb-3">
-              <span class="px-3 py-1 rounded-full bg-white/10 text-xs font-extrabold">Seviye ${card.level} • ${card.partOfSpeech}</span>
-              ${srs ? `<span class="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-bold">✓ Sonraki Tekrar: ${srs.interval === 0 ? 'Bugün' : srs.interval + ' gün sonra'}</span>` : ''}
+        <div class="card overflow-hidden">
+          <div class="p-6 bg-slate-900 text-white text-center space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="chip chip-brand">Seviye ${card.level} • ${card.partOfSpeech}</span>
+              ${srs ? `<span class="chip chip-green">✓ Sonraki Tekrar: ${srs.interval === 0 ? 'Bugün' : srs.interval + ' gün sonra'}</span>` : ''}
             </div>
-            <div class="text-4xl sm:text-5xl my-2 animate-float">${scene.emojis}</div>
-            <div class="inline-block px-3.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-bold tracking-wide uppercase mt-1">
+            <div class="text-4xl py-1">${scene.emojis}</div>
+            <div class="inline-block px-3 py-1 rounded-full bg-white/10 text-xs font-bold uppercase tracking-wide">
               🔑 SES ÇAĞRIŞIMI: ${scene.badge}
             </div>
           </div>
 
           <div class="p-6 sm:p-8">
             <div class="text-center space-y-3">
-              <h2 class="text-4xl sm:text-5xl font-black">${card.word}</h2>
+              <h2 class="text-3xl sm:text-5xl font-extrabold text-slate-900 dark:text-white">${card.word}</h2>
               <div class="flex items-center justify-center gap-2">
-                <span class="text-sm font-mono text-slate-400">${card.ipa}</span>
-                <span class="px-3 py-1 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-sm font-extrabold">🗣️ Okunuşu: ${card.trRead}</span>
+                <span class="text-sm font-mono muted">${card.ipa}</span>
+                <span class="chip chip-brand text-xs">🗣️ Okunuşu: ${card.trRead}</span>
               </div>
               <div class="flex items-center justify-center gap-2 pt-2">
-                <button onclick="speakText('${card.word}', 0.9)" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm">🔊 Kelimeyi Dinle</button>
-                <button onclick="speakText('${card.word}', 0.55)" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-bold">🐢 Yavaş</button>
+                <button onclick="speakText('${card.word}', 0.9)" class="btn btn-primary btn-sm">
+                  ${icon('volume', 'w-4 h-4')}
+                  <span>Kelimeyi Dinle</span>
+                </button>
+                <button onclick="speakText('${card.word}', 0.55)" class="btn btn-secondary btn-sm">🐢 Yavaş</button>
               </div>
             </div>
 
             ${!state.cardFlipped ? `
               <div class="mt-6 text-center">
-                <button onclick="flipCard()" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition">
-                  🔍 Görsel Hafıza Hikayesini & Anlamını Aç
+                <button onclick="flipCard()" class="btn btn-primary btn-lg w-full sm:w-auto">
+                  Görsel Hafıza Hikayesini & Anlamını Göster
                 </button>
               </div>
             ` : `
-              <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4 animate-fadeIn">
+              <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4 anim-in">
                 <div class="text-center">
-                  <div class="text-xs font-extrabold uppercase text-slate-400">TÜRKÇE ANLAMI</div>
-                  <div class="text-2xl font-black text-emerald-600 mt-0.5">${card.meaning}</div>
+                  <div class="eyebrow">TÜRKÇE ANLAMI</div>
+                  <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">${card.meaning}</div>
                 </div>
-                <div class="p-4 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 space-y-1.5">
-                  <div class="text-xs font-extrabold text-blue-800 dark:text-blue-300 uppercase">🎬 GÖRSEL HAFIZA HİKAYESİ (${card.soundAlikeTr})</div>
-                  <p class="text-sm font-medium">${card.mnemonicStory}</p>
+                <div class="p-4 rounded-xl bg-brand-50/70 dark:bg-brand-950/30 border border-brand-200/70 dark:border-brand-900/50 space-y-1">
+                  <div class="text-xs font-extrabold text-brand-800 dark:text-brand-300 uppercase">🎬 HAFIZA HİKAYESİ (${card.soundAlikeTr})</div>
+                  <p class="text-sm font-medium text-slate-700 dark:text-slate-200">${card.mnemonicStory}</p>
                 </div>
                 <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between gap-3">
                   <div>
-                    <p class="text-sm font-extrabold">"${card.exampleEn}"</p>
-                    <p class="text-xs font-bold text-blue-600 mt-0.5">🗣️ ${card.exampleRead}</p>
-                    <p class="text-xs text-slate-500 mt-0.5">🇹🇷 ${card.exampleTr}</p>
+                    <p class="text-sm font-bold text-slate-900 dark:text-white">"${card.exampleEn}"</p>
+                    <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-0.5">🗣️ ${card.exampleRead}</p>
+                    <p class="text-xs muted mt-0.5">🇹🇷 ${card.exampleTr}</p>
                   </div>
-                  <button onclick="speakText('${card.exampleEn.replace(/'/g, "\\'")}', 0.9)" class="p-2.5 rounded-xl bg-blue-600 text-white shrink-0">🔊</button>
+                  <button onclick="speakText('${card.exampleEn.replace(/'/g, "\\'")}', 0.9)" class="speak-btn">${icon('volume', 'w-4 h-4')}</button>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                  <button onclick="rateCard('again')" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 font-bold text-xs border border-rose-200 dark:border-rose-900">😓 Zorlandım<span class="block text-[10px] font-normal">5 dk sonra</span></button>
-                  <button onclick="rateCard('hard')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-900">🤔 Biraz Zor<span class="block text-[10px] font-normal">1 gün sonra</span></button>
-                  <button onclick="rateCard('good')" class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-bold text-xs border border-emerald-200 dark:border-emerald-900">😊 İyi Hatırladım<span class="block text-[10px] font-normal">3 gün sonra</span></button>
-                  <button onclick="rateCard('easy')" class="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold text-xs border border-blue-200 dark:border-blue-900">🚀 Çok Kolay!<span class="block text-[10px] font-normal">7+ gün sonra</span></button>
+                  <button onclick="rateCard('again')" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-bold text-xs border border-rose-200 dark:border-rose-900">😓 Zorlandım<span class="block text-[10px] font-normal mt-0.5">5 dk sonra</span></button>
+                  <button onclick="rateCard('hard')" class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-200 dark:border-amber-900">🤔 Biraz Zor<span class="block text-[10px] font-normal mt-0.5">1 gün sonra</span></button>
+                  <button onclick="rateCard('good')" class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs border border-emerald-200 dark:border-emerald-900">😊 İyi Hatırladım<span class="block text-[10px] font-normal mt-0.5">3 gün sonra</span></button>
+                  <button onclick="rateCard('easy')" class="p-3 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 font-bold text-xs border border-brand-200 dark:border-brand-900">🚀 Çok Kolay!<span class="block text-[10px] font-normal mt-0.5">7+ gün sonra</span></button>
                 </div>
               </div>
             `}
           </div>
         </div>
       ` : state.srsSub === 'builder' ? `
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 modern-card p-5 sm:p-6 space-y-5">
+        <div class="card p-5 sm:p-6 space-y-5">
           <div class="flex items-center justify-between">
-            <span class="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-xs font-extrabold">Görev ${state.challengeIdx + 1} / ${SENTENCE_CHALLENGES.length}</span>
-            <button onclick="resetBuilder()" class="text-xs font-bold text-slate-500">🔄 Sıfırla</button>
+            <span class="chip chip-brand">Görev ${state.challengeIdx + 1} / ${SENTENCE_CHALLENGES.length}</span>
+            <button onclick="resetBuilder()" class="btn btn-ghost btn-sm">Sıfırla</button>
           </div>
           <div>
-            <p class="text-xs font-bold uppercase text-slate-400">BU CÜMLEYİ İNGİLİZCE KUR:</p>
-            <h3 class="text-xl sm:text-2xl font-black mt-1">"${ch.trPrompt}"</h3>
+            <div class="eyebrow">BU CÜMLEYİ İNGİLİZCE KUR</div>
+            <h3 class="h1 mt-1">"${ch.trPrompt}"</h3>
           </div>
           <div class="min-h-[72px] p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-wrap items-center gap-2">
             ${state.selectedWords.length === 0
-              ? `<span class="text-xs text-slate-400">Aşağıdaki kelimelere sırayla dokunarak cümleyi buraya diz...</span>`
-              : state.selectedWords.map((w) => `<button onclick="toggleBuilderWord('${w.replace(/'/g, "\\'")}')" class="px-3.5 py-2 rounded-lg bg-blue-600 text-white font-bold text-sm">${w}</button>`).join('')
+              ? `<span class="text-xs muted">Aşağıdaki kelimelere sırayla dokunarak cümleyi buraya diz...</span>`
+              : state.selectedWords.map((w) => `<button onclick="toggleBuilderWord('${w.replace(/'/g, "\\'")}')" class="tile tile-selected">${w}</button>`).join('')
             }
           </div>
           <div class="flex flex-wrap gap-2">
             ${pool.map((w) => {
               const used = state.selectedWords.includes(w);
               const safeW = w.replace(/'/g, "\\'");
-              return `<button ${used ? 'disabled' : ''} onclick="toggleBuilderWord('${safeW}')" class="px-4 py-2.5 rounded-lg font-bold text-sm border ${used ? 'opacity-30' : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:border-blue-500'}">${w}</button>`;
+              return `<button ${used ? 'disabled' : ''} onclick="toggleBuilderWord('${safeW}')" class="tile ${used ? 'tile-used' : ''}">${w}</button>`;
             }).join('')}
           </div>
           <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <span class="text-xs text-slate-500">💡 ${ch.grammarTip}</span>
+            <span class="text-xs muted">💡 ${ch.grammarTip}</span>
             <div class="flex gap-2">
-              <button onclick="checkBuilder()" class="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-extrabold text-xs">Cümleyi Kontrol Et</button>
-              <button onclick="nextChallenge()" class="px-4 py-2.5 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs font-bold">Sonraki Soru →</button>
+              <button onclick="checkBuilder()" class="btn btn-success btn-sm">Cümleyi Kontrol Et</button>
+              <button onclick="nextChallenge()" class="btn btn-secondary btn-sm">Sonraki Soru →</button>
             </div>
           </div>
-          ${state.builderResult === 'correct' ? `<div class="p-4 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-extrabold">🏆 Harika! Doğru Cümle (+20 XP) — Okunuşu: ${ch.trRead}</div>` : ''}
-          ${state.builderResult === 'wrong' ? `<div class="p-4 rounded-xl bg-rose-50 text-rose-800 text-xs font-bold">❌ Doğru sıra: "${ch.correctWords.join(' ')}"</div>` : ''}
+          ${state.builderResult === 'correct' ? `<div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 text-xs font-bold">🏆 Harika! Doğru Cümle (+20 XP) — Okunuşu: ${ch.trRead}</div>` : ''}
+          ${state.builderResult === 'wrong' ? `<div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 text-xs font-bold">❌ Doğru sıra: "${ch.correctWords.join(' ')}"</div>` : ''}
         </div>
       ` : `
         <div class="space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             ${LEVEL_EXAMS.map((ex) => `
-              <button onclick="selectExam('${ex.id}')" class="p-4 rounded-xl border text-left transition ${
-                activeExam.id === ex.id ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-600' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+              <button onclick="selectExam('${ex.id}')" class="card p-4 text-left transition ${
+                activeExam.id === ex.id ? 'border-brand-600 ring-2 ring-brand-500/20' : 'hover:border-slate-300'
               }">
-                <span class="inline-block px-2.5 py-0.5 rounded-md bg-blue-600 text-white text-xs font-bold mb-1">${ex.level}</span>
-                <h3 class="font-extrabold text-sm">${ex.title}</h3>
-                <p class="text-xs text-slate-500 mt-0.5">${ex.description}</p>
+                <span class="chip chip-brand mb-1.5">${ex.level}</span>
+                <h3 class="font-bold text-sm text-slate-900 dark:text-white">${ex.title}</h3>
+                <p class="text-xs muted mt-0.5">${ex.description}</p>
               </button>
             `).join('')}
           </div>
 
-          <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 modern-card p-5 sm:p-6 space-y-5">
+          <div class="card p-5 sm:p-6 space-y-5">
             <div>
-              <h2 class="text-xl font-extrabold">${activeExam.title}</h2>
-              <p class="text-xs text-slate-500">Her soruda doğru şıkkı seç; anında detaylı Türkçe çözüm açıklamasını gör (+15 XP)!</p>
+              <h2 class="h2">${activeExam.title}</h2>
+              <p class="text-xs muted mt-0.5">Her soruda doğru şıkkı seç; anında detaylı Türkçe çözüm açıklamasını gör (+15 XP).</p>
             </div>
 
             <div class="space-y-4">
               ${activeExam.questions.map((qItem, qIdx) => {
                 const chosen = state.examAnswers[qIdx];
                 return `
-                  <div class="p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
-                    <p class="font-extrabold text-sm sm:text-base">${qItem.q}</p>
+                  <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 space-y-3">
+                    <p class="font-bold text-sm sm:text-base text-slate-900 dark:text-white">${qItem.q}</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       ${qItem.options.map((opt, optIdx) => {
-                        let btnStyle = 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:border-blue-500';
+                        let cls = 'option';
                         if (chosen !== undefined) {
                           if (optIdx === qItem.answer) {
-                            btnStyle = 'bg-emerald-600 text-white border-emerald-600';
+                            cls = 'option option-correct';
                           } else if (optIdx === chosen) {
-                            btnStyle = 'bg-rose-600 text-white border-rose-600';
+                            cls = 'option option-wrong';
                           }
                         }
                         return `
-                          <button onclick="answerExamQuestion(${qIdx}, ${optIdx})" class="p-3 rounded-lg border text-left text-xs sm:text-sm font-bold transition ${btnStyle}">
-                            ${opt}
+                          <button onclick="answerExamQuestion(${qIdx}, ${optIdx})" class="${cls}">
+                            <span>${opt}</span>
                           </button>
                         `;
                       }).join('')}
                     </div>
                     ${chosen !== undefined ? `
-                      <div class="p-3 rounded-lg ${chosen === qItem.answer ? 'bg-emerald-100/80 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200' : 'bg-blue-100/80 text-blue-900 dark:bg-blue-950/60 dark:text-blue-200'} text-xs font-semibold">
+                      <div class="p-3 rounded-xl ${chosen === qItem.answer ? 'bg-emerald-100/80 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200' : 'bg-brand-100/80 text-brand-900 dark:bg-brand-950/60 dark:text-brand-200'} text-xs font-semibold">
                         ${chosen === qItem.answer ? '✅ Doğru!' : '💡 Çözüm Açıklaması:'} ${qItem.explanation}
                       </div>
                     ` : ''}
