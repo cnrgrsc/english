@@ -23,6 +23,13 @@ import {
   renderInteractivePlayerModal,
   renderSearchModal
 } from './src/ui/lessonPlayer.js';
+import {
+  PLACEMENT_QUESTIONS,
+  GRADED_STORIES,
+  getAchievementsList,
+  renderPlacementModal,
+  renderStoriesSection
+} from './src/ui/placementAndStory.js';
 
 // Eski önbellekleri (linguamaster-v1 vb.) otomatik temizle ve #boot ekranını kaldır
 (function clearLegacyCacheAndBoot() {
@@ -153,6 +160,8 @@ function loadProgress() {
         masteredTables: parsed.masteredTables || [],
         completedChecklist: parsed.completedChecklist || [],
         completedScenarios: parsed.completedScenarios || [],
+        completedStories: parsed.completedStories || [],
+        detectedLevel: parsed.detectedLevel || null,
         srsMap: parsed.srsMap || {},
         studyPlanId: parsed.studyPlanId || 'standard',
         dailyCompleted: parsed.dailyCompleted || {},
@@ -180,6 +189,8 @@ function loadProgress() {
     masteredTables: [],
     completedChecklist: [],
     completedScenarios: [],
+    completedStories: [],
+    detectedLevel: null,
     srsMap: {},
     studyPlanId: 'standard',
     dailyCompleted: {},
@@ -234,17 +245,20 @@ const state = {
   darkMode: document.documentElement.classList.contains('dark'),
   selectedLevel: 'ALL',
   progress: loadProgress(),
-  // İnteraktif Ders Oturumu & Arama Modalı
+  // İnteraktif Ders Oturumu, Seviye Tespit & Arama Modalı
   practiceSession: { active: false, questions: [], currentIdx: 0, selectedOpt: null, correctCount: 0, earnedXp: 0, finished: false },
+  placementTest: { active: false, idx: 0, answers: {}, finished: false },
   searchModal: { open: false, query: '' },
   // Alfabe state
   alphaSub: 'letters',
   alphaFilter: 'all',
   selectedLetter: ALPHABET_DATA[0],
-  // Sohbet state
+  // Sohbet & Sesli Hikaye state
   convSub: 'patterns',
   phraseCat: 'all',
   scenarioId: CONVERSATION_SCENARIOS[0].id,
+  storyId: GRADED_STORIES[0].id,
+  storyQuizAnswers: {},
   // Gramer & Tablolar state
   gramSub: 'tables',
   tableId: REFERENCE_TABLES[0].id,
@@ -301,6 +315,80 @@ window.nextPracticeQuestion = () => {
 };
 window.closePracticeSession = () => {
   state.practiceSession.active = false;
+  renderApp();
+};
+
+// Akıllı Seviye Tespit Sınavı (Placement Test) & Sesli Hikayeler Aksiyonları
+window.openPlacementTest = () => {
+  state.placementTest = { active: true, idx: 0, answers: {}, finished: false };
+  renderApp();
+};
+window.closePlacementTest = () => {
+  state.placementTest.active = false;
+  renderApp();
+};
+window.answerPlacementQ = (optIdx) => {
+  const pt = state.placementTest;
+  if (!pt.active || pt.answers[pt.idx] !== undefined) return;
+  pt.answers[pt.idx] = optIdx;
+  renderApp();
+};
+window.nextPlacementQ = () => {
+  const pt = state.placementTest;
+  if (!pt.active) return;
+  if (pt.idx + 1 >= PLACEMENT_QUESTIONS.length) {
+    pt.finished = true;
+    let correct = 0;
+    PLACEMENT_QUESTIONS.forEach((q, i) => {
+      if (pt.answers[i] === q.answer) correct++;
+    });
+    const lvl = correct >= 9 ? 'C1' : correct >= 7 ? 'B2' : correct >= 5 ? 'B1' : correct >= 3 ? 'A2' : 'A1';
+    state.progress.detectedLevel = lvl;
+    state.progress.xp += 50;
+    saveProgress();
+    recordActivity('+50 XP', `Seviye Tespit Sınavı Tamamlandı: Seviye ${lvl}`, 'Akıllı Seviye Tespit');
+  } else {
+    pt.idx += 1;
+  }
+  renderApp();
+};
+window.applyPlacementLevel = (lvl) => {
+  state.placementTest.active = false;
+  state.selectedLevel = lvl;
+  state.tab = 'roadmap';
+  renderApp();
+};
+
+window.selectStory = (id) => {
+  state.storyId = id;
+  const st = GRADED_STORIES.find((s) => s.id === id);
+  if (st) {
+    recordLastVisited({
+      title: `Sesli Hikaye: ${st.title}`,
+      category: `Seviye ${st.level} • Sesli Hikaye Stüdyosu`,
+      level: st.level,
+      tab: 'conversations'
+    });
+  }
+  renderApp();
+};
+window.completeStory = (id) => {
+  if (!state.progress.completedStories) state.progress.completedStories = [];
+  if (!state.progress.completedStories.includes(id)) {
+    state.progress.completedStories.push(id);
+    addXp(30);
+    const st = GRADED_STORIES.find((s) => s.id === id);
+    if (st) recordActivity('+30 XP', `Sesli Hikaye Bitirildi: ${st.title}`, `Seviye ${st.level} Okuma`);
+  }
+  saveProgress();
+  renderApp();
+};
+window.answerStoryQuiz = (key, optIdx, correctIdx) => {
+  if (!state.storyQuizAnswers) state.storyQuizAnswers = {};
+  if (state.storyQuizAnswers[key] === undefined && optIdx === correctIdx) {
+    addXp(10);
+  }
+  state.storyQuizAnswers[key] = optIdx;
   renderApp();
 };
 
@@ -868,6 +956,10 @@ function renderHome() {
                 ${icon('zap', 'w-4 h-4 text-amber-300')}
                 <span>5 Soruluk Pratik</span>
               </button>
+              <button onclick="openPlacementTest()" class="btn bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 btn-lg">
+                ${icon('target', 'w-4 h-4 text-emerald-300')}
+                <span>${p.detectedLevel ? `Seviyen: ${p.detectedLevel} (Yeniden Ölç)` : 'Seviyemi Ölç (10 Soru)'}</span>
+              </button>
             </div>
           </div>
 
@@ -1034,6 +1126,34 @@ function renderHome() {
           </div>
         </div>
 
+      </div>
+
+      <!-- 4. BAŞARIM & ROZETLERİM (Oyunlaştırılmış Motivasyon Barı) -->
+      <div class="card p-5 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="chip chip-amber">🏆 OYUNLAŞTIRILMIŞ BAŞARIMLAR</span>
+            <h2 class="h2 mt-1">Rozetlerin & Kilometre Taşların</h2>
+          </div>
+          <button onclick="setTab('conversations'); setConvSub('stories')" class="btn btn-secondary btn-sm">
+            <span>📖 Sesli Hikayeleri Aç</span>
+            ${icon('arrowRight', 'w-3.5 h-3.5')}
+          </button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          ${getAchievementsList(p).map((ach) => `
+            <div class="p-3.5 rounded-2xl border text-center space-y-1.5 transition ${
+              ach.unlocked
+                ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800/80'
+                : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200/70 dark:border-slate-800 opacity-55'
+            }">
+              <div class="text-2xl">${ach.icon}</div>
+              <div class="text-xs font-extrabold text-slate-900 dark:text-white">${ach.title}</div>
+              <p class="text-[10px] muted leading-snug">${ach.desc}</p>
+              <span class="chip ${ach.unlocked ? 'chip-green' : 'chip-slate'}">${ach.unlocked ? '✓ Açıldı' : 'Kilitli'}</span>
+            </div>
+          `).join('')}
+        </div>
       </div>
     </div>
   `;
@@ -1344,12 +1464,15 @@ function renderConversations() {
             <button onclick="setConvSub('dialogues')" class="seg-item ${state.convSub === 'dialogues' ? 'seg-active' : ''}">
               Rol Canlandırma (${state.progress.completedScenarios.length}/${CONVERSATION_SCENARIOS.length})
             </button>
+            <button onclick="setConvSub('stories')" class="seg-item ${state.convSub === 'stories' ? 'seg-active' : ''}">
+              📖 Sesli Hikayeler (${GRADED_STORIES.length})
+            </button>
           </div>
         </div>
         ${state.convSub === 'patterns' ? renderLevelFilterBar() : ''}
       </div>
 
-      ${state.convSub === 'patterns' ? `
+      ${state.convSub === 'stories' ? renderStoriesSection(state) : state.convSub === 'patterns' ? `
         <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           ${PHRASE_CATEGORIES.map((c) => `
             <button onclick="setPhraseCat('${c.id}')" class="shrink-0 px-3.5 h-9 rounded-xl text-xs font-semibold border transition ${
@@ -2071,8 +2194,9 @@ function renderApp() {
         </div>
       </nav>
 
-      <!-- İNTERAKTİF PRATİK OTURUMU VE ARAMA MODALLARI -->
+      <!-- İNTERAKTİF PRATİK, SEVİYE TESPİT VE ARAMA MODALLARI -->
       ${renderInteractivePlayerModal(state.practiceSession)}
+      ${renderPlacementModal(state.placementTest)}
       ${renderSearchModal(state.searchModal)}
     </div>
   `;
