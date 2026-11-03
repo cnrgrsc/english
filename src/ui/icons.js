@@ -1,4 +1,4 @@
-// LinguaMaster — Açık kaynak ikon seti (Lucide, ISC lisansı) — yalnızca kullanılan ikonlar
+// LinguaMaster — Açık kaynak ikon seti (Lucide, ISC lisansı) ve Özel Marka Logosu / Vektör İllüstrasyonları
 const PATHS = {
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
@@ -31,7 +31,7 @@ const PATHS = {
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
   trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
-  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1-1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   type: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>',
   table: '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>',
@@ -58,3 +58,36 @@ export function icon(name, cls = 'w-5 h-5', stroke = 2) {
   return `<svg class="${cls} shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 }
 
+/**
+ * LinguaMaster Özel Vektör Amblem Logosu (Açık Kitap + Konuşma Balonu + Ses Dalgası + Yıldız)
+ */
+export function brandLogoSVG(cls = 'w-10 h-10') {
+  return `
+    <svg class="${cls} shrink-0" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="LinguaMaster Logo">
+      <defs>
+        <linearGradient id="lm-bg" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#3B66F5"/>
+          <stop offset="50%" stop-color="#4F46E5"/>
+          <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+        <linearGradient id="lm-accent" x1="16" y1="12" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FDE047"/>
+          <stop offset="100%" stop-color="#34D399"/>
+        </linearGradient>
+      </defs>
+      <!-- Ana Kalkan / Rozet Gövdesi -->
+      <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#lm-bg)"/>
+      <rect x="6" y="6" width="52" height="52" rx="16" stroke="white" stroke-opacity="0.22" stroke-width="1.5"/>
+      <!-- Açık Kitap Kanatları -->
+      <path d="M16 24C16 21.7909 17.7909 20 20 20H28C30.2091 20 32 21.7909 32 24V44C32 42.3431 30.2091 41 28 41H20C17.7909 41 16 39.2091 16 37V24Z" fill="white" fill-opacity="0.95"/>
+      <path d="M48 24C48 21.7909 46.2091 20 44 20H36C33.7909 20 32 21.7909 32 24V44C32 42.3431 33.7909 41 36 41H44C46.2091 41 48 39.2091 48 37V24Z" fill="white" fill-opacity="0.8"/>
+      <!-- Sol Sayfa "A" Harfi -->
+      <path d="M24 26L20.8 35H22.7L23.3 33.1H25.7L26.3 35H28.2L25 26H24ZM23.8 31.5L24.5 29.2L25.2 31.5H23.8Z" fill="#2554EB"/>
+      <!-- Sağ Sayfa Ses Dalgaları -->
+      <path d="M36.5 28.5H42.5M36.5 32H44M36.5 35.5H41" stroke="#4F46E5" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- Üst Parlayan Bilgi Yıldızı / Konuşma İkonu -->
+      <circle cx="48" cy="16" r="7" fill="url(#lm-accent)"/>
+      <path d="M48 12.2L49.1 14.9L51.8 16L49.1 17.1L48 19.8L46.9 17.1L44.2 16L46.9 14.9L48 12.2Z" fill="#0F172A"/>
+    </svg>
+  `;
+}

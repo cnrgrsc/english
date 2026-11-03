@@ -17,7 +17,7 @@ import {
   renderResumeAndDailyCockpit,
   renderStudyPlannerPage
 } from './src/data/studyPlanner.js';
-import { icon } from './src/ui/icons.js';
+import { icon, brandLogoSVG } from './src/ui/icons.js';
 import {
   buildInteractiveSessionQuestions,
   renderInteractivePlayerModal,
@@ -781,44 +781,37 @@ function renderHeaderStats() {
   if (xpEl) xpEl.textContent = `🏆 ${state.progress.xp} XP`;
 }
 
-// --- SEVİYE FİLTRESİ BARI (A1 -> C2) ---
+// --- SADE SEVİYE SEÇİCİ PİLL BARI (Tekrarlayan butonlar kaldırıldı) ---
 function renderLevelFilterBar() {
   const levels = [
-    { id: 'ALL', label: 'Tümü' },
-    { id: 'A1', label: 'A1 Başlangıç' },
-    { id: 'A2', label: 'A2 Temel' },
-    { id: 'B1', label: 'B1 Orta' },
-    { id: 'B2', label: 'B2 Orta Üstü' },
-    { id: 'C1', label: 'C1 İleri' },
-    { id: 'C2', label: 'C2 Ana Dil' }
+    { id: 'ALL', label: 'Tüm Seviyeler', dot: 'bg-slate-400' },
+    { id: 'A1', label: 'A1 Başlangıç', dot: 'bg-emerald-500' },
+    { id: 'A2', label: 'A2 Temel', dot: 'bg-sky-500' },
+    { id: 'B1', label: 'B1 Orta', dot: 'bg-indigo-500' },
+    { id: 'B2', label: 'B2 Orta Üstü', dot: 'bg-amber-500' },
+    { id: 'C1', label: 'C1 İleri', dot: 'bg-rose-500' },
+    { id: 'C2', label: 'C2 Ana Dil', dot: 'bg-purple-500' }
   ];
   return `
-    <div class="card p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-      <div class="flex items-center gap-1 shrink-0">
-        <span class="text-[11px] font-bold text-slate-400 px-2.5 hidden sm:inline">SEVİYE:</span>
-        ${levels.map((l) => `
-          <button onclick="setGlobalLevel('${l.id}')" class="px-3 h-8 rounded-xl text-xs font-semibold transition shrink-0 ${
-            state.selectedLevel === l.id
-              ? 'bg-brand-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }">${l.label}</button>
-        `).join('')}
-      </div>
-      <div class="flex items-center gap-1.5 shrink-0">
-        <button onclick="startPracticeSession()" class="btn btn-primary btn-sm">
-          ${icon('zap', 'w-3.5 h-3.5')}
-          <span>5 Soruluk Pratik</span>
-        </button>
-        <button onclick="setTab('roadmap')" class="btn btn-secondary btn-sm">
-          <span>A1 → C2 Müfredat</span>
-          ${icon('chevronRight', 'w-3.5 h-3.5')}
-        </button>
-      </div>
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      ${levels.map((l) => {
+        const active = state.selectedLevel === l.id;
+        return `
+          <button onclick="setGlobalLevel('${l.id}')" class="px-3.5 h-9 rounded-xl text-xs font-bold transition shrink-0 flex items-center gap-2 border ${
+            active
+              ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+              : 'bg-white dark:bg-ink-900 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+          }">
+            <span class="w-2 h-2 rounded-full ${active ? 'bg-white' : l.dot}"></span>
+            <span>${l.label}</span>
+          </button>
+        `;
+      }).join('')}
     </div>
   `;
 }
 
-// --- 1. ANA MERKEZ (PROFESYONEL 2 SÜTUNLU DİL ÖĞRENME PANELİ) ---
+// --- 1. ANA MERKEZ (SADE, FERAH & ODAKLI ÖĞRENME PANELİ) ---
 function renderHome() {
   const p = state.progress;
   const totalCurriculumUnits = LEVEL_ROADMAP.reduce((acc, l) => acc + l.units.length, 0);
@@ -845,278 +838,199 @@ function renderHome() {
     category: 'A1 Başlangıç • Alfabe & Ses',
     timeLabel: 'Başlangıç noktası'
   };
-  const upcoming = getUpcomingUnitsList(p, state.selectedLevel, 4);
+  const upcoming = getUpcomingUnitsList(p, 'ALL', 3);
   const wordOfDay = MNEMONIC_VOCAB_DATA[p.masteredLetters.length % MNEMONIC_VOCAB_DATA.length] || MNEMONIC_VOCAB_DATA[0];
-  const recentLogs = (p.activityLog || []).slice(0, 4);
 
   return `
     <div class="space-y-6 pb-8 anim-in">
-      ${renderLevelFilterBar()}
 
-      <!-- Üst Aktif Ders & Devam Et Kokpiti -->
-      <div class="card p-6 sm:p-7 relative overflow-hidden border-l-4 border-l-brand-600">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div class="space-y-3 max-w-2xl">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="chip chip-brand">
-                ${icon('sparkles', 'w-3.5 h-3.5')}
-                <span>KALDIĞIN YERDEN DEVAM ET</span>
-              </span>
-              <span class="text-xs muted">${last.category || 'A1 Başlangıç'} • ${last.timeLabel || 'Az önce'}</span>
+      <!-- 1. HERO KARTI: Kaldığın Yer & Genel İlerleme (Ferah & Tek Odaklı) -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 shadow-lift border border-indigo-500/20">
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-3.5 max-w-2xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-sky-300">
+              <span>📌 KALDIĞIN YER</span>
+              <span class="text-white/40">•</span>
+              <span class="text-slate-200">${last.category || 'A1 Başlangıç'}</span>
             </div>
-            <h1 class="h1">${last.title}</h1>
-            <p class="text-sm muted leading-relaxed">
-              Son çalıştığın dersten tek tıkla devam edebilir veya 5 soruluk günlük interaktif pratik oturumuyla öğrendiklerini hemen test edebilirsin.
+            <h1 class="text-2xl sm:text-3xl font-display font-extrabold tracking-tight text-white leading-snug">
+              ${last.title}
+            </h1>
+            <p class="text-sm text-slate-300 leading-relaxed">
+              Son çalıştığın yerden tek tıkla devam et veya 5 soruluk hızlı pratikle bilgilerini tazele.
             </p>
-            <div class="flex flex-wrap items-center gap-2.5 pt-1">
-              <button onclick="resumeLastActivity()" class="btn btn-primary btn-md">
-                ${icon('play', 'w-4 h-4')}
-                <span>Kaldığım Yerden Devam Et</span>
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button onclick="resumeLastActivity()" class="btn bg-white text-slate-950 hover:bg-slate-100 btn-lg font-extrabold shadow-md">
+                ${icon('play', 'w-4 h-4 text-brand-600')}
+                <span>Kaldığım Derse Devam Et</span>
               </button>
-              <button onclick="startPracticeSession()" class="btn btn-secondary btn-md">
-                ${icon('zap', 'w-4 h-4 text-brand-600')}
-                <span>Günlük Pratik Yap (5 Soru)</span>
-              </button>
-              <button onclick="openPronounsTable()" class="btn btn-outline btn-md">
-                ${icon('table', 'w-4 h-4')}
-                <span>21 Konu & Zamir Tablosu</span>
+              <button onclick="startPracticeSession()" class="btn bg-white/10 hover:bg-white/20 text-white border border-white/15 btn-lg">
+                ${icon('zap', 'w-4 h-4 text-amber-300')}
+                <span>5 Soruluk Pratik</span>
               </button>
             </div>
           </div>
 
-          <!-- Sağ İlerleme Halkası -->
-          <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 shrink-0">
+          <!-- Sağ İlerleme Özeti -->
+          <div class="flex items-center gap-4 p-4 sm:p-5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shrink-0">
             <div class="relative w-16 h-16 flex items-center justify-center">
               <svg class="w-16 h-16 -rotate-90" viewBox="0 0 80 80">
-                <circle cx="40" cy="40" r="32" stroke="currentColor" class="text-slate-200 dark:text-slate-700" stroke-width="7" fill="none"/>
-                <circle cx="40" cy="40" r="32" stroke="#2554eb" stroke-width="7" fill="none" stroke-linecap="round"
+                <circle cx="40" cy="40" r="32" stroke="rgba(255,255,255,0.15)" stroke-width="7" fill="none"/>
+                <circle cx="40" cy="40" r="32" stroke="#38bdf8" stroke-width="7" fill="none" stroke-linecap="round"
                   stroke-dasharray="201" stroke-dashoffset="${201 - (201 * pct) / 100}"/>
               </svg>
-              <span class="absolute text-sm font-extrabold text-slate-900 dark:text-white">%${pct}</span>
+              <span class="absolute text-sm font-extrabold text-white">%${pct}</span>
             </div>
             <div class="space-y-1 pr-2">
-              <div class="text-xs font-bold text-slate-900 dark:text-white">Genel Müfredat İlerlemesi</div>
-              <div class="text-xs font-semibold text-brand-600 dark:text-brand-400">${done} / ${total} Adım Tamamlandı</div>
-              <div class="text-[11px] muted">🔥 ${p.streakDays} Gün Seri • 🏆 ${p.xp} XP</div>
+              <div class="text-xs font-bold text-sky-300 uppercase tracking-wider">Toplam İlerleme</div>
+              <div class="text-base font-extrabold text-white">${done} / ${total} Adım</div>
+              <div class="text-xs text-slate-300">🔥 ${p.streakDays} Gün Seri • 🏆 ${p.xp} XP</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ANA 2 SÜTUNLU PANEL (Sol 8 Sütun: Ders Yolu & Modüller | Sağ 4 Sütun: Günlük Plan & Günün Kelimesi) -->
+      <!-- 2. DÖRT ANA ÖĞRENİM MODÜLÜ (Temiz, Renkli & Tek Bakışta Anlaşılır) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button onclick="setTab('alphabet')" class="card card-hover p-5 text-left flex flex-col justify-between gap-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-extrabold text-lg">
+                Aa
+              </div>
+              <span class="chip chip-brand">${p.masteredLetters.length}/26 Harf</span>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">Alfabe & Okunuş (A → Ey)</h3>
+              <p class="text-xs muted mt-1 leading-relaxed">26 harfin Türkçe okunuşu, görsel çapası ve TH/SH/CH sesleri.</p>
+            </div>
+          </div>
+          <div class="progress"><span style="width: ${Math.round((p.masteredLetters.length / 26) * 100)}%"></span></div>
+        </button>
+
+        <button onclick="setTab('grammar')" class="card card-hover p-5 text-left flex flex-col justify-between gap-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                ${icon('table', 'w-5 h-5')}
+              </div>
+              <span class="chip chip-brand">${p.masteredTables.length}/${REFERENCE_TABLES.length} Tablo</span>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">Zamir & Gramer Tabloları</h3>
+              <p class="text-xs muted mt-1 leading-relaxed">Şahıs/Nesne/İyelik zamirleri, edatlar, modallar ve 12 zaman.</p>
+            </div>
+          </div>
+          <div class="progress"><span style="width: ${Math.round((p.masteredTables.length / REFERENCE_TABLES.length) * 100)}%"></span></div>
+        </button>
+
+        <button onclick="setTab('conversations')" class="card card-hover p-5 text-left flex flex-col justify-between gap-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                ${icon('message', 'w-5 h-5')}
+              </div>
+              <span class="chip chip-green">${PHRASE_PATTERNS.length} Kalıp</span>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">Günlük Sohbet & Diyalog</h3>
+              <p class="text-xs muted mt-1 leading-relaxed">Günlük konuşma kalıpları ve mikrofonlu rol canlandırma.</p>
+            </div>
+          </div>
+          <div class="progress"><span style="width: ${Math.round((p.masteredPhrases.length / PHRASE_PATTERNS.length) * 100)}%"></span></div>
+        </button>
+
+        <button onclick="setTab('srs')" class="card card-hover p-5 text-left flex flex-col justify-between gap-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="w-11 h-11 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                ${icon('trophy', 'w-5 h-5')}
+              </div>
+              <span class="chip chip-amber">${MNEMONIC_VOCAB_DATA.length} Kart • 3 Sınav</span>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">Kelime Hafıza & Sınavlar</h3>
+              <p class="text-xs muted mt-1 leading-relaxed">Resimli hafıza çivileri, cümle kurma ve seviye sınavları.</p>
+            </div>
+          </div>
+          <div class="progress"><span style="width: ${Math.round((Object.keys(p.srsMap).length / MNEMONIC_VOCAB_DATA.length) * 100)}%"></span></div>
+        </button>
+      </div>
+
+      <!-- 3. ALT 2 SÜTUN: Sol (Sıradaki 3 Dersin) | Sağ (Bugünkü Hedefin & Günün Kelimesi) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <!-- SOL ANA SÜTUN (8 Sütun) -->
-        <div class="lg:col-span-8 space-y-6">
-          
-          <!-- 1. Adım Adım Aktif Ders Yolu (Learning Path) -->
-          <div class="card p-5 sm:p-6 space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <div class="flex items-center gap-2">
-                  <span class="chip chip-brand">SEVİYE ${upcoming.level} DERS YOLU</span>
-                  <span class="text-xs font-semibold muted">${upcoming.doneInLevel}/${upcoming.totalInLevel} Ünite Tamamlandı</span>
-                </div>
-                <h2 class="h2 mt-1">${upcoming.levelTitle}</h2>
-              </div>
-              <button onclick="setTab('roadmap')" class="btn btn-secondary btn-sm self-start sm:self-auto">
-                <span>Tüm Üniteler (62)</span>
-                ${icon('chevronRight', 'w-3.5 h-3.5')}
-              </button>
+        <!-- Sol 7 Sütun: Sıradaki 3 Dersin -->
+        <div class="lg:col-span-7 card p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="chip chip-brand">SEVİYE ${upcoming.level} • ADIM ADIM İLERLE</span>
+              <h2 class="h2 mt-1">Sıradaki Derslerin</h2>
             </div>
-
-            <div class="space-y-2.5">
-              ${upcoming.units.map((u, idx) => {
-                const isDone = (p.completedChecklist || []).includes(u.code);
-                const isCurrent = !isDone && idx === upcoming.units.findIndex((x) => !(p.completedChecklist || []).includes(x.code));
-                return `
-                  <div class="p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    isCurrent
-                      ? 'bg-brand-50/50 dark:bg-brand-950/30 border-brand-500 ring-1 ring-brand-500/30'
-                      : isDone
-                      ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
-                      : 'bg-white dark:bg-ink-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
-                  }">
-                    <div class="flex items-start sm:items-center gap-3.5 flex-1">
-                      <div class="w-11 h-10 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
-                        isDone
-                          ? 'bg-emerald-600 text-white'
-                          : isCurrent
-                          ? 'bg-brand-600 text-white shadow-sm'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                      }">
-                        ${isDone ? icon('check', 'w-4 h-4') : u.code}
-                      </div>
-                      <div class="min-w-0">
-                        <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
-                          ${isCurrent ? `<span class="chip chip-brand">ŞU ANKİ DERSİN</span>` : ''}
-                          ${isDone ? `<span class="chip chip-green">Tamamlandı</span>` : ''}
-                          <span class="chip chip-slate">${u.tag}</span>
-                        </div>
-                        <h3 class="text-sm font-bold ${isDone ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'} leading-snug">
-                          ${u.title}
-                        </h3>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="btn ${isCurrent ? 'btn-primary' : 'btn-secondary'} btn-sm">
-                        <span>Dersi Aç</span>
-                        ${icon('arrowRight', 'w-3.5 h-3.5')}
-                      </button>
-                      <button onclick="toggleChecklistItem('${u.code}')" class="btn ${isDone ? 'btn-success' : 'btn-outline'} btn-sm">
-                        ${isDone ? 'Tamam ✓' : 'Bitir'}
-                      </button>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
+            <button onclick="setTab('roadmap')" class="btn btn-secondary btn-sm">
+              <span>Tüm Müfredat (A1–C2)</span>
+              ${icon('chevronRight', 'w-3.5 h-3.5')}
+            </button>
           </div>
 
-          <!-- 2. 4 Ana Öğrenim Stüdyosu (2x2 Kartlar) -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div onclick="setTab('grammar')" class="card card-hover p-5 flex flex-col justify-between gap-4">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <div class="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/70 text-brand-600 dark:text-brand-400 flex items-center justify-center">
-                    ${icon('table', 'w-5 h-5')}
+          <div class="space-y-2.5">
+            ${upcoming.units.map((u, idx) => {
+              const isDone = (p.completedChecklist || []).includes(u.code);
+              const isCurrent = !isDone && idx === upcoming.units.findIndex((x) => !(p.completedChecklist || []).includes(x.code));
+              return `
+                <div onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="cursor-pointer p-4 rounded-2xl border transition flex items-center justify-between gap-4 ${
+                  isCurrent
+                    ? 'bg-brand-50/50 dark:bg-brand-950/30 border-brand-500'
+                    : isDone
+                    ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
+                    : 'bg-slate-50/60 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 hover:border-brand-400'
+                }">
+                  <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-11 h-11 rounded-xl flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                      isDone
+                        ? 'bg-emerald-600 text-white'
+                        : isCurrent
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                    }">
+                      ${isDone ? '✓' : u.code}
+                    </div>
+                    <div class="min-w-0">
+                      <span class="text-[11px] font-bold text-brand-600 dark:text-brand-400">${u.tag}</span>
+                      <h3 class="text-sm font-bold text-slate-900 dark:text-white truncate">${u.title}</h3>
+                    </div>
                   </div>
-                  <span class="chip chip-brand">${p.masteredTables.length}/${REFERENCE_TABLES.length} Tablo</span>
+                  <span class="btn ${isCurrent ? 'btn-primary' : 'btn-secondary'} btn-sm shrink-0">
+                    <span>Başla</span>
+                    ${icon('arrowRight', 'w-3.5 h-3.5')}
+                  </span>
                 </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Zamir, Edat, Modal & C1-C2 Tabloları</h3>
-                <p class="text-xs muted leading-relaxed">Şahıs/Nesne/İyelik zamirleri, Sayılar, Artikeller, Modals, Phrasal Verbs ve 12 Zaman Çizelgesi.</p>
-              </div>
-              <div class="space-y-2">
-                <div class="progress"><span style="width: ${Math.round((p.masteredTables.length / REFERENCE_TABLES.length) * 100)}%"></span></div>
-                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
-                  <span>Tabloları & Zamanları Aç</span>
-                  ${icon('arrowRight', 'w-3.5 h-3.5')}
-                </div>
-              </div>
-            </div>
-
-            <div onclick="setTab('alphabet')" class="card card-hover p-5 flex flex-col justify-between gap-4">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                    ${icon('type', 'w-5 h-5')}
-                  </div>
-                  <span class="chip chip-brand">${p.masteredLetters.length}/26 Harf</span>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Alfabe (A → Ey) & Fonetik Stüdyosu</h3>
-                <p class="text-xs muted leading-relaxed">26 harfin görsel çapası, Türkçe okunuşu, ağız/dil pozisyonu ve TH, SH, CH, GH ses kuralları.</p>
-              </div>
-              <div class="space-y-2">
-                <div class="progress"><span style="width: ${Math.round((p.masteredLetters.length / 26) * 100)}%"></span></div>
-                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
-                  <span>Harfleri & Sesleri Aç</span>
-                  ${icon('arrowRight', 'w-3.5 h-3.5')}
-                </div>
-              </div>
-            </div>
-
-            <div onclick="setTab('conversations')" class="card card-hover p-5 flex flex-col justify-between gap-4">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                    ${icon('message', 'w-5 h-5')}
-                  </div>
-                  <span class="chip chip-green">${PHRASE_PATTERNS.length} Kalıp • 4 Diyalog</span>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Günlük Sohbet & Rol Canlandırma</h3>
-                <p class="text-xs muted leading-relaxed">Kafe, Mağaza, Havalimanı ve İş Toplantısı simülasyonları; mikrofonlu telaffuz testi.</p>
-              </div>
-              <div class="space-y-2">
-                <div class="progress"><span style="width: ${Math.round((p.masteredPhrases.length / PHRASE_PATTERNS.length) * 100)}%"></span></div>
-                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
-                  <span>Kalıplara & Diyaloglara Gir</span>
-                  ${icon('arrowRight', 'w-3.5 h-3.5')}
-                </div>
-              </div>
-            </div>
-
-            <div onclick="setTab('srs')" class="card card-hover p-5 flex flex-col justify-between gap-4">
-              <div class="space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                    ${icon('trophy', 'w-5 h-5')}
-                  </div>
-                  <span class="chip chip-amber">${Object.keys(p.srsMap).length}/${MNEMONIC_VOCAB_DATA.length} Kart • 3 Sınav</span>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Görsel Hafıza (SRS) & Seviye Sınavları</h3>
-                <p class="text-xs muted leading-relaxed">Ses çağrışımlı kelime kartları, kelime dizerek cümle kurma ve çözümlü seviye sınavları.</p>
-              </div>
-              <div class="space-y-2">
-                <div class="progress"><span style="width: ${Math.round((Object.keys(p.srsMap).length / MNEMONIC_VOCAB_DATA.length) * 100)}%"></span></div>
-                <div class="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center justify-between">
-                  <span>Kartları & Sınavları Aç</span>
-                  ${icon('arrowRight', 'w-3.5 h-3.5')}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. Görsel Hafıza Şemaları -->
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <h2 class="h2">Görsel Hafıza & Dilbilgisi Şemaları</h2>
-              <button onclick="setTab('grammar')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Tüm Tablolar →</button>
-            </div>
-            ${renderVisualInfographicsSection()}
+              `;
+            }).join('')}
           </div>
         </div>
 
-        <!-- SAĞ YAN SÜTUN (4 Sütun: Günlük Plan + Günün Kelimesi + Son Yaptıklarım) -->
-        <div class="lg:col-span-4 space-y-5">
+        <!-- Sağ 5 Sütun: Bugünkü Plan & Günün Kelimesi -->
+        <div class="lg:col-span-5 space-y-5">
           ${renderResumeAndDailyCockpit(state)}
 
-          <!-- Günün Hafıza Çivisi (Word of the Day Mini Kart) -->
           <div class="card p-5 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="chip chip-amber">🔑 GÜNÜN HAFIZA KARTI (${wordOfDay.level})</span>
+              <span class="chip chip-amber">🔑 GÜNÜN KELİMESİ (${wordOfDay.level})</span>
               <button onclick="speakText('${wordOfDay.word}', 0.9)" class="speak-btn speak-btn-sm" title="Sesli Dinle">
                 ${icon('volume', 'w-4 h-4')}
               </button>
             </div>
-            <div>
-              <div class="flex items-baseline gap-2">
-                <h3 class="text-xl font-extrabold text-slate-900 dark:text-white">${wordOfDay.word}</h3>
-                <span class="text-xs font-semibold text-brand-600 dark:text-brand-400">[${wordOfDay.trRead}]</span>
+            <div class="flex items-baseline justify-between gap-2">
+              <div>
+                <span class="text-lg font-extrabold text-slate-900 dark:text-white">${wordOfDay.word}</span>
+                <span class="text-xs font-semibold text-brand-600 dark:text-brand-400 ml-1.5">[${wordOfDay.trRead}]</span>
               </div>
-              <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">= ${wordOfDay.meaning}</div>
+              <span class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">${wordOfDay.meaning}</span>
             </div>
-            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 text-xs space-y-1">
-              <div class="font-bold text-slate-800 dark:text-slate-200">Çağrışım: ${wordOfDay.soundAlikeTr}</div>
-              <p class="muted leading-relaxed">${wordOfDay.mnemonicStory}</p>
-            </div>
-            <button onclick="setTab('srs'); setSrsSub('flashcards')" class="btn btn-secondary btn-sm w-full">
-              <span>Tüm Hafıza Kartlarını Çalış</span>
-              ${icon('arrowRight', 'w-3.5 h-3.5')}
-            </button>
-          </div>
-
-          <!-- Son Yaptıklarım (Activity Feed) -->
-          <div class="card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="h3">Son Yaptıklarım</h3>
-              <button onclick="setTab('planner')" class="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">Tümü →</button>
-            </div>
-            ${recentLogs.length === 0 ? `
-              <p class="text-xs muted py-3 text-center">Tamamladığın dersler ve tablolar burada listelenir.</p>
-            ` : `
-              <div class="space-y-2">
-                ${recentLogs.map((log) => `
-                  <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-2 min-w-0">
-                      <span class="chip chip-green shrink-0">${log.badge || '✓'}</span>
-                      <span class="font-semibold text-slate-700 dark:text-slate-200 truncate">${log.title}</span>
-                    </div>
-                    <span class="text-[10px] muted shrink-0">${log.time}</span>
-                  </div>
-                `).join('')}
-              </div>
-            `}
+            <p class="text-xs muted leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800">
+              <strong>Hafıza İpucu (${wordOfDay.soundAlikeTr}):</strong> ${wordOfDay.mnemonicStory}
+            </p>
           </div>
         </div>
 
@@ -1125,7 +1039,7 @@ function renderHome() {
   `;
 }
 
-// --- 2. SEVİYE YOL HARİTASI (A1 -> C2 MÜFREDAT) ---
+// --- 2. SEVİYE YOL HARİTASI (A1 -> C2 MÜFREDAT — FERAH 2 SÜTUNLU KART DÜZENİ) ---
 function renderRoadmap() {
   const filteredLevels =
     state.selectedLevel === 'ALL'
@@ -1134,23 +1048,22 @@ function renderRoadmap() {
 
   return `
     <div class="space-y-6 pb-8 anim-in">
-      ${renderLevelFilterBar()}
-
-      <div class="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div class="space-y-1.5">
-          <span class="chip chip-brand">A1'DEN C2'YE AKADEMİK MÜFREDAT</span>
-          <h1 class="h1">Hangi Seviyede Ne Öğrenilecek? (A1 → C2)</h1>
-          <p class="text-sm muted">
-            İstediğin dersin yanındaki <strong>"Konuyu Aç"</strong> butonuna basarak doğrudan o konunun tablosuna gidebilir veya tamamladığında işaretleyebilirsin (+15 XP).
-          </p>
+      <!-- Tek ve Sade Başlık + Seviye Seçici -->
+      <div class="card p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="chip chip-brand">A1'DEN C2'YE ADIM ADIM DERS HARİTASI</span>
+            <h1 class="h1 mt-1">Hangi Seviyede Ne Öğrenilecek?</h1>
+            <p class="text-xs sm:text-sm muted mt-0.5">
+              Kartın üzerine tıklayarak doğrudan o dersin tablosunu açabilir, sağ üstteki kutucukla tamamlandı işaretleyebilirsin.
+            </p>
+          </div>
         </div>
-        <button onclick="openSearchModal()" class="btn btn-secondary btn-md shrink-0">
-          ${icon('search', 'w-4 h-4')}
-          <span>Müfredatta Ara</span>
-        </button>
+        ${renderLevelFilterBar()}
       </div>
 
-      <div class="space-y-5">
+      <!-- Seviye Blokları & 2 Sütunlu Ders Kartları -->
+      <div class="space-y-6">
         ${filteredLevels.map((lvl) => {
           const completedInLevel = lvl.units.filter((u) =>
             state.progress.completedChecklist.includes(u.code)
@@ -1158,49 +1071,54 @@ function renderRoadmap() {
           const pct = Math.round((completedInLevel / lvl.units.length) * 100);
 
           return `
-            <div class="card overflow-hidden">
-              <div class="p-5 sm:p-6 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="chip chip-brand">SEVİYE ${lvl.level}</span>
-                    <span class="text-xs font-semibold muted">%${pct} Tamamlandı</span>
-                  </div>
-                  <h2 class="h2">${lvl.title}</h2>
-                  <p class="text-xs sm:text-sm muted">${lvl.description}</p>
+            <div class="space-y-3">
+              <!-- Seviye Başlık Şeridi -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
+                <div class="flex items-center gap-2.5">
+                  <span class="px-3 py-1 rounded-xl bg-brand-600 text-white text-xs font-extrabold">SEVİYE ${lvl.level}</span>
+                  <h2 class="text-lg font-extrabold text-slate-900 dark:text-white">${lvl.title}</h2>
                 </div>
-                <div class="shrink-0 bg-white dark:bg-ink-900 border border-slate-200 dark:border-slate-700 px-4 py-2.5 rounded-xl text-center">
-                  <div class="text-lg font-extrabold text-brand-600 dark:text-brand-400">${completedInLevel} / ${lvl.units.length}</div>
-                  <div class="text-[11px] font-semibold muted">Ünite Bitti</div>
+                <div class="flex items-center gap-3">
+                  <div class="w-28 progress"><span style="width: ${pct}%"></span></div>
+                  <span class="text-xs font-bold text-brand-600 dark:text-brand-400">${completedInLevel}/${lvl.units.length} Ünite (%${pct})</span>
                 </div>
               </div>
 
-              <div class="p-4 sm:p-6 space-y-2">
+              <!-- 2 Sütunlu Ferah Ders Kartları Izgarası -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 ${lvl.units.map((u) => {
                   const checked = state.progress.completedChecklist.includes(u.code);
                   return `
-                    <div class="p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                      checked
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50'
-                        : 'bg-white dark:bg-ink-900 border-slate-200/80 dark:border-slate-800 hover:border-brand-400'
+                    <div class="card p-4 flex flex-col justify-between gap-3 transition hover:border-brand-400 ${
+                      checked ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/70 dark:border-emerald-900/60' : ''
                     }">
-                      <div onclick="toggleChecklistItem('${u.code}')" class="cursor-pointer flex items-center gap-3 flex-1">
-                        <div class="w-11 h-8 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
-                          checked ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
-                        }">
-                          ${checked ? '✓' : u.code}
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                          <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold ${
+                            checked ? 'bg-emerald-600 text-white' : 'bg-brand-50 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300'
+                          }">${u.code}</span>
+                          <span class="chip chip-slate">${u.tag}</span>
                         </div>
-                        <div>
-                          <span class="text-sm font-semibold block ${checked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-slate-100'}">${u.title}</span>
-                          <span class="text-[11px] font-semibold text-brand-600 dark:text-brand-400">${u.tag}</span>
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="btn btn-secondary btn-sm">
-                          <span>Konuyu Aç</span>
-                          ${icon('arrowRight', 'w-3.5 h-3.5')}
+                        <button onclick="toggleChecklistItem('${u.code}')" class="w-8 h-8 rounded-xl border flex items-center justify-center transition shrink-0 ${
+                          checked
+                            ? 'bg-emerald-600 border-emerald-600 text-white'
+                            : 'border-slate-300 dark:border-slate-700 text-slate-400 hover:border-brand-500 hover:text-brand-500'
+                        }" title="${checked ? 'Tamamlandı' : 'Tamamlandı İşaretle (+15 XP)'}">
+                          ${icon('check', 'w-4 h-4')}
                         </button>
-                        <button onclick="toggleChecklistItem('${u.code}')" class="btn ${checked ? 'btn-success' : 'btn-outline'} btn-sm">
-                          ${checked ? 'Tamam ✓' : 'Bitir'}
+                      </div>
+
+                      <h3 onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="cursor-pointer text-sm font-bold leading-snug ${
+                        checked ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400'
+                      }">
+                        ${u.title}
+                      </h3>
+
+                      <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                        <span class="text-[11px] muted">${checked ? '✓ Öğrenildi' : '+15 XP'}</span>
+                        <button onclick="goToUnitLesson('${u.targetTab || 'grammar'}', '${u.tableId || ''}', '${u.tenseId || ''}', '${u.code}')" class="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1">
+                          <span>Dersi Aç</span>
+                          ${icon('arrowRight', 'w-3.5 h-3.5')}
                         </button>
                       </div>
                     </div>
@@ -1412,22 +1330,23 @@ function renderConversations() {
 
   return `
     <div class="space-y-6 pb-8 anim-in">
-      ${renderLevelFilterBar()}
-
-      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <span class="chip chip-green">GERÇEK HAYAT & İŞ İNGİLİZCESİ</span>
-          <h1 class="h1">Günlük Konuşma Kalıpları & Diyalog Simülatörü</h1>
-          <p class="text-sm muted">Seviyene göre günlük kalıplar, birebir mantık karşılaştırması ve mikrofonlu rol canlandırma.</p>
+      <div class="card p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <span class="chip chip-green">GERÇEK HAYAT & İŞ İNGİLİZCESİ</span>
+            <h1 class="h1">Günlük Konuşma Kalıpları & Diyalog Simülatörü</h1>
+            <p class="text-sm muted">Seviyene göre günlük kalıplar, birebir mantık karşılaştırması ve mikrofonlu rol canlandırma.</p>
+          </div>
+          <div class="seg shrink-0">
+            <button onclick="setConvSub('patterns')" class="seg-item ${state.convSub === 'patterns' ? 'seg-active' : ''}">
+              Günlük Kalıplar (${phrases.length})
+            </button>
+            <button onclick="setConvSub('dialogues')" class="seg-item ${state.convSub === 'dialogues' ? 'seg-active' : ''}">
+              Rol Canlandırma (${state.progress.completedScenarios.length}/${CONVERSATION_SCENARIOS.length})
+            </button>
+          </div>
         </div>
-        <div class="seg shrink-0">
-          <button onclick="setConvSub('patterns')" class="seg-item ${state.convSub === 'patterns' ? 'seg-active' : ''}">
-            Günlük Kalıplar (${phrases.length})
-          </button>
-          <button onclick="setConvSub('dialogues')" class="seg-item ${state.convSub === 'dialogues' ? 'seg-active' : ''}">
-            Rol Canlandırma (${state.progress.completedScenarios.length}/${CONVERSATION_SCENARIOS.length})
-          </button>
-        </div>
+        ${state.convSub === 'patterns' ? renderLevelFilterBar() : ''}
       </div>
 
       ${state.convSub === 'patterns' ? `
@@ -1577,28 +1496,29 @@ function renderGrammar() {
 
   return `
     <div class="space-y-6 pb-8 anim-in">
-      ${renderLevelFilterBar()}
-
       <!-- Üst Başlık & Sekme Seçici -->
-      <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <span class="chip chip-brand">ZAMİR TABLOLARI & GÖRSEL ZAMANLAR</span>
-          <h1 class="h1">Şahıs/Kişi Zamirleri, Yapı Tabloları & Zaman Çizelgeleri</h1>
-          <p class="text-sm muted">
-            Zamirlerin cümledeki renkli konum şeması, IN-ON-AT görsel piramidi, ${REFERENCE_TABLES.length} detaylı tablo ve SVG zaman çizelgeleri.
-          </p>
+      <div class="card p-5 sm:p-6 space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <span class="chip chip-brand">ZAMİR TABLOLARI & GÖRSEL ZAMANLAR</span>
+            <h1 class="h1">Şahıs/Kişi Zamirleri, Yapı Tabloları & Zaman Çizelgeleri</h1>
+            <p class="text-sm muted">
+              Zamirlerin cümledeki renkli konum şeması, IN-ON-AT görsel piramidi, ${REFERENCE_TABLES.length} detaylı tablo ve SVG zaman çizelgeleri.
+            </p>
+          </div>
+          <div class="seg shrink-0">
+            <button onclick="setGramSub('tables')" class="seg-item ${state.gramSub === 'tables' ? 'seg-active' : ''}">
+              Konu & Zamir Tabloları (${REFERENCE_TABLES.length})
+            </button>
+            <button onclick="setGramSub('tenses')" class="seg-item ${state.gramSub === 'tenses' ? 'seg-active' : ''}">
+              Görsel Zamanlar (${GRAMMAR_TENSES.length})
+            </button>
+            <button onclick="setGramSub('rules')" class="seg-item ${state.gramSub === 'rules' ? 'seg-active' : ''}">
+              Altın Kurallar (4)
+            </button>
+          </div>
         </div>
-        <div class="seg shrink-0">
-          <button onclick="setGramSub('tables')" class="seg-item ${state.gramSub === 'tables' ? 'seg-active' : ''}">
-            Konu & Zamir Tabloları (${REFERENCE_TABLES.length})
-          </button>
-          <button onclick="setGramSub('tenses')" class="seg-item ${state.gramSub === 'tenses' ? 'seg-active' : ''}">
-            Görsel Zamanlar (${GRAMMAR_TENSES.length})
-          </button>
-          <button onclick="setGramSub('rules')" class="seg-item ${state.gramSub === 'rules' ? 'seg-active' : ''}">
-            Altın Kurallar (4)
-          </button>
-        </div>
+        ${state.gramSub === 'tables' ? renderLevelFilterBar() : ''}
       </div>
 
       <!-- Görsel İnfografik Şemalar -->
@@ -1815,8 +1735,6 @@ function renderSRS() {
 
   return `
     <div class="space-y-6 pb-8 anim-in">
-      ${renderLevelFilterBar()}
-
       <!-- Üst Başlık & Alt Sekme Seçici -->
       <div class="card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div class="space-y-1">
@@ -2004,24 +1922,21 @@ function renderSRS() {
   `;
 }
 
-// --- ANA UYGULAMA ÇERÇEVESİ (PROFESYONEL DİL PLATFORMU MİMARİSİ) ---
+// --- ANA UYGULAMA ÇERÇEVESİ (SADE, FERAH & ÖZEL LOGOLU DİL PLATFORMU MİMARİSİ) ---
 function renderApp() {
   const root = document.getElementById('root');
   if (!root) return;
 
   const navItems = [
-    { id: 'home', label: 'Ana Merkez', short: 'Merkez', iconName: 'home', badge: '' },
-    { id: 'planner', label: 'Çalışma Planım', short: 'Planım', iconName: 'calendar', badge: 'Yeni' },
-    { id: 'roadmap', label: 'A1 → C2 Müfredat', short: 'Müfredat', iconName: 'map', badge: '62 Ünite' },
-    { id: 'grammar', label: 'Zamir & Tablolar', short: 'Tablolar', iconName: 'table', badge: '21 Tablo' },
-    { id: 'alphabet', label: 'Alfabe & Ses Lab', short: 'Alfabe', iconName: 'type', badge: '26 Harf' },
-    { id: 'conversations', label: 'Sohbet & Diyalog', short: 'Sohbet', iconName: 'message', badge: '' },
-    { id: 'srs', label: 'Hafıza & Sınavlar', short: 'Sınav/SRS', iconName: 'trophy', badge: '' }
+    { id: 'home', label: 'Ana Merkez', short: 'Merkez', iconName: 'home', color: 'text-sky-500 bg-sky-500/10' },
+    { id: 'roadmap', label: 'Ders Haritası (A1–C2)', short: 'Harita', iconName: 'map', color: 'text-indigo-500 bg-indigo-500/10' },
+    { id: 'alphabet', label: 'Alfabe & Telaffuz', short: 'Alfabe', iconName: 'type', color: 'text-violet-500 bg-violet-500/10' },
+    { id: 'grammar', label: 'Zamir & Tablolar', short: 'Tablolar', iconName: 'table', color: 'text-blue-500 bg-blue-500/10' },
+    { id: 'conversations', label: 'Günlük Konuşma', short: 'Sohbet', iconName: 'message', color: 'text-emerald-500 bg-emerald-500/10' },
+    { id: 'srs', label: 'Kelime & Sınavlar', short: 'Sınav', iconName: 'trophy', color: 'text-amber-500 bg-amber-500/10' },
+    { id: 'planner', label: 'Çalışma Planım', short: 'Planım', iconName: 'calendar', color: 'text-rose-500 bg-rose-500/10' }
   ];
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const completedDailyIds = (state.progress.dailyCompleted && state.progress.dailyCompleted[todayStr]) || [];
-  const dailyPct = Math.min(100, Math.round((completedDailyIds.length / DEFAULT_DAILY_TASKS.length) * 100));
   const last = state.progress.lastVisited || {
     title: 'Ders 9-10: İngiliz Alfabesi (A → Ey)',
     category: 'A1 Başlangıç'
@@ -2030,65 +1945,50 @@ function renderApp() {
   root.innerHTML = `
     <div class="min-h-screen flex bg-slate-50 dark:bg-ink-950 text-slate-900 dark:text-slate-100">
       
-      <!-- SOL YAN MENÜ (Desktop Sidebar — Profesyonel Dil Uygulaması Düzeni) -->
-      <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-slate-200/80 dark:border-slate-800 bg-white dark:bg-ink-900 sticky top-0 h-screen justify-between p-4">
-        <div class="space-y-5">
-          <!-- Marka & Logo -->
-          <button onclick="setTab('home')" class="flex items-center gap-3 px-2 py-1 text-left w-full group">
-            <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-display font-extrabold text-lg shadow-sm group-hover:scale-105 transition">
-              Aa
+      <!-- SOL YAN MENÜ (Desktop Sidebar — Sade, Tek Satır & Özel Logolu) -->
+      <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-ink-900 sticky top-0 h-screen justify-between p-4">
+        <div class="space-y-6">
+          <!-- Özel Vektör Marka Logosu -->
+          <button onclick="setTab('home')" class="flex items-center gap-3 px-1.5 py-1 text-left w-full group">
+            <div class="group-hover:scale-105 transition duration-200">
+              ${brandLogoSVG('w-11 h-11')}
             </div>
             <div>
-              <span class="font-display font-extrabold text-lg block leading-none text-slate-900 dark:text-white">
+              <span class="font-display font-extrabold text-lg tracking-tight block leading-none text-slate-900 dark:text-white">
                 Lingua<span class="text-brand-600 dark:text-brand-400">Master</span>
               </span>
-              <span class="text-[11px] font-semibold text-slate-400 block mt-1">A1 → C2 Akademik Sistem</span>
+              <span class="text-[11px] font-semibold text-slate-400 block mt-1">İngilizce Öğrenim Sistemi</span>
             </div>
           </button>
 
-          <!-- Hızlı Günlük Pratik Başlat Butonu -->
-          <button onclick="startPracticeSession()" class="btn btn-primary btn-md w-full shadow-md">
-            ${icon('play', 'w-4 h-4')}
-            <span>Günlük Pratik Başlat</span>
-          </button>
-
-          <!-- Ana Navigasyon Menüsü -->
-          <nav class="space-y-1">
-            <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">ÖĞRENİM MODÜLLERİ</div>
+          <!-- Sade & Tek Satırlı Ana Navigasyon Menüsü -->
+          <nav class="space-y-1.5">
             ${navItems.map((n) => {
               const active = state.tab === n.id;
               return `
-                <button onclick="setTab('${n.id}')" class="nav-item w-full justify-between ${active ? 'nav-active' : ''}">
-                  <span class="flex items-center gap-3">
-                    ${icon(n.iconName, 'w-5 h-5')}
-                    <span>${n.label}</span>
+                <button onclick="setTab('${n.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition ${
+                  active
+                    ? 'bg-brand-600 text-white font-bold shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                }">
+                  <span class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    active ? 'bg-white/20 text-white' : n.color
+                  }">
+                    ${icon(n.iconName, 'w-4 h-4')}
                   </span>
-                  ${n.badge ? `<span class="chip ${active ? 'chip-brand' : 'chip-slate'}">${n.badge}</span>` : ''}
+                  <span class="truncate">${n.label}</span>
                 </button>
               `;
             }).join('')}
           </nav>
         </div>
 
-        <!-- Alt Kaldığım Yer & Günlük Hedef Özeti -->
-        <div class="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/70 space-y-2">
-            <div class="flex items-center justify-between text-xs font-bold">
-              <span class="text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                ${icon('target', 'w-4 h-4 text-brand-600')}
-                <span>Günlük Hedef</span>
-              </span>
-              <span class="text-brand-600 dark:text-brand-400">${completedDailyIds.length}/${DEFAULT_DAILY_TASKS.length}</span>
-            </div>
-            <div class="progress">
-              <span style="width: ${dailyPct}%"></span>
-            </div>
-          </div>
-
-          <button onclick="resumeLastActivity()" class="w-full p-3 rounded-xl bg-brand-50/70 hover:bg-brand-100/70 dark:bg-brand-950/40 dark:hover:bg-brand-950/70 border border-brand-200/70 dark:border-brand-900/60 text-left transition space-y-1">
-            <div class="flex items-center justify-between text-[10px] font-extrabold uppercase text-brand-700 dark:text-brand-300">
-              <span>📌 KALDIĞIN YER</span>
-              <span>Devam Et →</span>
+        <!-- Alt Kaldığım Yer Kartı (Tek ve Sade) -->
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+          <button onclick="resumeLastActivity()" class="w-full p-3.5 rounded-2xl bg-slate-50 hover:bg-brand-50/60 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/70 text-left transition space-y-1">
+            <div class="flex items-center justify-between text-[10px] font-extrabold uppercase text-brand-600 dark:text-brand-400">
+              <span>📌 SON ÇALIŞTIĞIN DERS</span>
+              <span>Aç →</span>
             </div>
             <div class="text-xs font-bold text-slate-900 dark:text-white truncate">${last.title}</div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">${last.category || ''}</div>
@@ -2098,12 +1998,12 @@ function renderApp() {
 
       <!-- SAĞ ANA İÇERİK SÜTUNU -->
       <div class="flex-1 flex flex-col min-w-0">
-        <!-- Üst Bar: Arama (Ctrl+K), Günlük Seri, XP, Aksan & Tema -->
-        <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800">
-          <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-            <!-- Mobil Logo -->
-            <button onclick="setTab('home')" class="lg:hidden flex items-center gap-2 text-left shrink-0">
-              <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-display font-extrabold text-sm">Aa</div>
+        <!-- Üst Bar: Arama (Ctrl+K), Günlük Pratik, Seri, XP, Aksan & Tema -->
+        <header class="sticky top-0 z-30 bg-white/90 dark:bg-ink-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
+          <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+            <!-- Mobil Özel Logo -->
+            <button onclick="setTab('home')" class="lg:hidden flex items-center gap-2.5 text-left shrink-0">
+              ${brandLogoSVG('w-9 h-9')}
               <span class="font-display font-extrabold text-base text-slate-900 dark:text-white">Lingua<span class="text-brand-600">Master</span></span>
             </button>
 
@@ -2111,7 +2011,7 @@ function renderApp() {
             <button onclick="openSearchModal()" class="flex-1 max-w-md h-10 px-3.5 rounded-xl bg-slate-100/90 hover:bg-slate-200/70 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700/70 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 transition">
               <span class="flex items-center gap-2 truncate">
                 ${icon('search', 'w-4 h-4 text-slate-400')}
-                <span class="truncate">Konu, tablo, zaman veya kelime ara...</span>
+                <span class="truncate">Konu, tablo veya kelime ara...</span>
               </span>
               <span class="kbd hidden sm:inline-flex">Ctrl K</span>
             </button>
@@ -2120,7 +2020,7 @@ function renderApp() {
             <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button onclick="startPracticeSession()" class="hidden sm:inline-flex btn btn-primary btn-sm">
                 ${icon('zap', 'w-3.5 h-3.5')}
-                <span>Hızlı Test</span>
+                <span>Günlük Pratik</span>
               </button>
 
               <div class="hidden sm:flex items-center gap-1 px-2.5 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-200/60 dark:border-amber-900/50" title="Günlük Seri">
@@ -2142,8 +2042,8 @@ function renderApp() {
           </div>
         </header>
 
-        <!-- Sayfa İçeriği -->
-        <main class="flex-1 max-w-6xl w-full mx-auto px-4 pt-5 pb-24 lg:pb-12">
+        <!-- Sayfa İçeriği (Ferah max-w-5xl Konteyner) -->
+        <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 pb-24 lg:pb-12">
           ${state.tab === 'home' ? renderHome() : ''}
           ${state.tab === 'planner' ? renderStudyPlannerPage(state) : ''}
           ${state.tab === 'roadmap' ? renderRoadmap() : ''}
