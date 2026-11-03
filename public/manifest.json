@@ -1,0 +1,20 @@
+{
+  "name": "LinguaMaster — İngilizce Öğren",
+  "short_name": "LinguaMaster",
+  "description": "A1'den C2'ye rehberli dersler, telaffuz, günlük konuşma kalıpları ve aralıklı tekrar sistemi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2554eb",
+  "orientation": "portrait-primary",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "/public/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
